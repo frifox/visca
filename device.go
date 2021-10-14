@@ -19,6 +19,14 @@ type Device struct {
 	CallPreset CallPreset
 	SavePreset SavePreset
 
+	OSDToggle OSDToggle
+	OSDEnter  OSDEnter
+	OSDReturn OSDReturn
+	OSDUp     OSDUp
+	OSDRight  OSDRight
+	OSDDown   OSDDown
+	OSDLeft   OSDLeft
+
 	// stateful commands
 	Move Move
 	Zoom Zoom
@@ -39,6 +47,14 @@ func (d *Device) Apply(cmds ...Command) {
 
 		&d.MoveHome: 0,
 		&d.Focus:    0,
+
+		&d.OSDToggle: 0,
+		&d.OSDEnter:  0,
+		&d.OSDReturn: 0,
+		&d.OSDUp:     0,
+		&d.OSDRight:  0,
+		&d.OSDDown:   0,
+		&d.OSDLeft:   0,
 
 		// stateful commands
 		&d.Move: 0,
