@@ -2,6 +2,7 @@ package visca
 
 import (
 	"math"
+	"time"
 )
 
 type Move struct {
@@ -11,6 +12,8 @@ type Move struct {
 	xStep  uint8
 	yStep  uint8
 	device *Device
+
+	runtime [3]time.Time // [write, fin, fin]
 }
 
 func (c *Move) apply() bool {

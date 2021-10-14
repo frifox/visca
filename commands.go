@@ -1,5 +1,7 @@
 package visca
 
+import "time"
+
 type Command interface {
 	apply() bool   // do we need to write to camera?
 	bytes() []byte // command bytes for writing
@@ -23,6 +25,7 @@ func (a *MoveHome) bytes() []byte {
 
 type Focus struct {
 	alwaysApply
+	runtime [3]time.Time // [write, fin, fin]
 }
 
 func (a *Focus) bytes() []byte {
@@ -41,6 +44,7 @@ func (a *SavePreset) bytes() []byte {
 type CallPreset struct {
 	ID uint8
 	alwaysApply
+	runtime [3]time.Time // [write, ack, fin]
 }
 
 func (a *CallPreset) bytes() []byte {

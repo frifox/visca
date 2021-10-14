@@ -1,13 +1,12 @@
 package visca
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"go.bug.st/serial"
 	"io"
 	"net"
 	"strings"
+	"time"
 )
 
 type Device struct {
@@ -20,12 +19,16 @@ type Device struct {
 	SavePreset SavePreset
 
 	OSDToggle OSDToggle
+	osdIsOpen bool
 	OSDEnter  OSDEnter
 	OSDReturn OSDReturn
 	OSDUp     OSDUp
 	OSDRight  OSDRight
 	OSDDown   OSDDown
 	OSDLeft   OSDLeft
+
+	// info inquiries
+	AskMenuStatus AskMenuStatus
 
 	// stateful commands
 	Move Move
@@ -39,31 +42,65 @@ type Device struct {
 	Close context.CancelFunc
 }
 
+type Async struct {
+	cmd Command
+
+	id     int
+	sentAt time.Time
+
+	accepted   bool
+	acceptedAt time.Time
+
+	finished   bool
+	finishedAt time.Time
+
+	latency time.Duration
+}
+
 func (d *Device) Apply(cmds ...Command) {
-	allowed := map[Command]int{
+	commands := map[Command]bool{
 		// one-shot commands
-		&d.CallPreset: 0,
-		&d.SavePreset: 0,
+		&d.CallPreset: true,
+		&d.SavePreset: true,
 
-		&d.MoveHome: 0,
-		&d.Focus:    0,
+		&d.MoveHome: true,
+		&d.Focus:    true,
 
-		&d.OSDToggle: 0,
-		&d.OSDEnter:  0,
-		&d.OSDReturn: 0,
-		&d.OSDUp:     0,
-		&d.OSDRight:  0,
-		&d.OSDDown:   0,
-		&d.OSDLeft:   0,
+		&d.OSDToggle: true,
+		&d.OSDEnter:  true,
+		&d.OSDReturn: true,
+		&d.OSDUp:     true,
+		&d.OSDRight:  true,
+		&d.OSDDown:   true,
+		&d.OSDLeft:   true,
 
 		// stateful commands
-		&d.Move: 0,
-		&d.Zoom: 0,
+		&d.Move: true,
+		&d.Zoom: true,
+
+		// inquiries
+		&d.AskMenuStatus: true,
 	}
 
 	for _, cmd := range cmds {
-		if _, ok := allowed[cmd]; ok && cmd.apply() {
+		// make sure applied command is found,
+		// is allowed to be fired,
+		// and actually really needs firing
+		if allowed, found := commands[cmd]; found {
+			if !allowed {
+				//fmt.Printf("NOT ALLOWED\n")
+				continue
+			}
+			if !cmd.apply() {
+				//fmt.Printf("NOT APPLIED\n")
+				continue
+			}
+
 			d.write <- cmd
+			// good to go
+
+		} else {
+			//fmt.Printf("NOT FOUND\n")
 		}
 	}
 }
@@ -101,8 +138,6 @@ func (d *Device) Find() (err error) {
 	d.Move.device = d
 	d.Zoom.device = d
 
-	// TODO test connectivity
-
 	return
 }
 func (d *Device) Found() bool {
@@ -118,71 +153,8 @@ func (d *Device) Run() {
 	d.write = make(chan Command)
 	go d.Writer()
 
+	// sync status
+	d.Apply(&d.AskMenuStatus)
+
 	<-d.Done()
-}
-
-func (d *Device) Reader() {
-	packet := bytes.Buffer{}
-
-	for {
-		if d.Err() != nil {
-			return
-		}
-
-		// read byte from camera
-		readByte := make([]byte, 1)
-		if _, err := d.port.Read(readByte); err != nil {
-			d.Close()
-			return
-		}
-		packet.Write(readByte)
-
-		//log.Printf("[Camera] Reading [% X]\n", packet.Bytes())
-
-		// is camera done talking?
-		if bytes.Equal(readByte, []byte{0xff}) {
-			d.read <- packet.Bytes()
-
-			// clear packet buffer
-			packet.Reset()
-		}
-	}
-}
-
-func (d *Device) readHandler() {
-	for {
-		select {
-		case packet := <-d.read:
-			fmt.Printf("[Camera] Read [% X]\n", packet)
-
-		case <-d.Done():
-			close(d.read)
-			return
-		}
-	}
-}
-
-func (d *Device) Writer() {
-	for {
-		select {
-		case cmd := <-d.write:
-			fmt.Printf("[%T] [% X] %+v\n", cmd, cmd.bytes(), cmd)
-
-			packet := bytes.Buffer{}
-			packet.WriteByte(0x81) // camera address
-			packet.Write(cmd.bytes())
-			packet.WriteByte(0xff) // EOF
-
-			_, err := d.port.Write(packet.Bytes())
-			if err != nil {
-				fmt.Printf("ERR write: %v\n", err)
-			} else {
-				//log.Printf("[Camera] Write len(%d) [% X]\n", n, packet)
-			}
-
-		case <-d.Done():
-			close(d.write)
-			return
-		}
-	}
 }

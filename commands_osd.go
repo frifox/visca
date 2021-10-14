@@ -1,9 +1,15 @@
 package visca
 
+import "time"
+
 type OSDToggle struct {
-	alwaysApply
+	MenuIsOn bool
+	runtime  [2]time.Time // [write, ack]
 }
 
+func (a *OSDToggle) apply() bool {
+	return true
+}
 func (a *OSDToggle) bytes() []byte {
 	return []byte{0x1, 0x4, 0x3f, 0x2, 0x5f}
 }
@@ -54,4 +60,13 @@ type OSDDown struct {
 
 func (a *OSDDown) bytes() []byte {
 	return []byte{0x1, 0x6, 0x1, 0xe, 0xe, 0x3, 0x2}
+}
+
+// AskMenuStatus asks camera if menu is open or not
+type AskMenuStatus struct {
+	alwaysApply
+}
+
+func (c *AskMenuStatus) bytes() []byte {
+	return []byte{0x9, 0x6, 0x6}
 }
