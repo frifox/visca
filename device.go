@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"go.bug.st/serial"
 	"io"
-	"log"
 	"net"
 	"strings"
 )
@@ -14,16 +13,47 @@ import (
 type Device struct {
 	Path string
 
-	port   io.ReadWriter
-	reader chan []byte
-	writer chan Command
+	// one-shot commands
+	MoveHome   MoveHome
+	Focus      Focus
+	CallPreset CallPreset
+	SavePreset SavePreset
 
-	Run  context.Context
-	Quit context.CancelFunc
+	// stateful commands
+	Move Move
+	Zoom Zoom
+
+	port  io.ReadWriter
+	read  chan []byte
+	write chan Command
+
+	context.Context
+	Close context.CancelFunc
+}
+
+func (d *Device) Apply(cmds ...Command) {
+	allowed := map[Command]int{
+		// one-shot commands
+		&d.CallPreset: 0,
+		&d.SavePreset: 0,
+
+		&d.MoveHome: 0,
+		&d.Focus:    0,
+
+		// stateful commands
+		&d.Move: 0,
+		&d.Zoom: 0,
+	}
+
+	for _, cmd := range cmds {
+		if _, ok := allowed[cmd]; ok && cmd.apply() {
+			d.write <- cmd
+		}
+	}
 }
 
 func (d *Device) Find() (err error) {
-	d.Run, d.Quit = context.WithCancel(context.Background())
+	d.Context, d.Close = context.WithCancel(context.Background())
 
 	if strings.HasPrefix(d.Path, "/") {
 		mode := serial.Mode{
@@ -48,9 +78,12 @@ func (d *Device) Find() (err error) {
 			return
 		}
 	}
+	if strings.HasPrefix(d.Path, "test://") {
+		d.port = &RW{}
+	}
 
-	d.reader = make(chan []byte)
-	d.writer = make(chan Command)
+	d.Move.device = d
+	d.Zoom.device = d
 
 	// TODO test connectivity
 
@@ -60,15 +93,30 @@ func (d *Device) Found() bool {
 	return d.port != nil
 }
 
+func (d *Device) Run() {
+	go d.Reader()
+
+	d.read = make(chan []byte)
+	go d.readHandler()
+
+	d.write = make(chan Command)
+	go d.Writer()
+
+	<-d.Done()
+}
+
 func (d *Device) Reader() {
 	packet := bytes.Buffer{}
 
 	for {
+		if d.Err() != nil {
+			return
+		}
+
 		// read byte from camera
 		readByte := make([]byte, 1)
 		if _, err := d.port.Read(readByte); err != nil {
-			d.Quit()
-			close(d.reader)
+			d.Close()
 			return
 		}
 		packet.Write(readByte)
@@ -77,7 +125,7 @@ func (d *Device) Reader() {
 
 		// is camera done talking?
 		if bytes.Equal(readByte, []byte{0xff}) {
-			d.reader <- packet.Bytes()
+			d.read <- packet.Bytes()
 
 			// clear packet buffer
 			packet.Reset()
@@ -88,9 +136,11 @@ func (d *Device) Reader() {
 func (d *Device) readHandler() {
 	for {
 		select {
-		case packet := <-d.reader:
-			log.Printf("[Camera] Read [% X]\n", packet)
-		case <-d.Run.Done():
+		case packet := <-d.read:
+			fmt.Printf("[Camera] Read [% X]\n", packet)
+
+		case <-d.Done():
+			close(d.read)
 			return
 		}
 	}
@@ -99,27 +149,24 @@ func (d *Device) readHandler() {
 func (d *Device) Writer() {
 	for {
 		select {
-		case cmd := <-d.writer:
-			fmt.Printf("[%T] %+v\n", cmd, cmd)
+		case cmd := <-d.write:
+			fmt.Printf("[%T] [% X] %+v\n", cmd, cmd.bytes(), cmd)
 
-			packet := []byte{0x81} // camera address
-			packet = append(packet, cmd.Bytes()...)
-			packet = append(packet, byte(0xff)) // EOF
+			packet := bytes.Buffer{}
+			packet.WriteByte(0x81) // camera address
+			packet.Write(cmd.bytes())
+			packet.WriteByte(0xff) // EOF
 
-			n, err := d.port.Write(packet)
+			_, err := d.port.Write(packet.Bytes())
 			if err != nil {
 				fmt.Printf("ERR write: %v\n", err)
 			} else {
-				log.Printf("[Camera] Write len(%d) [% X]\n", n, packet)
+				//log.Printf("[Camera] Write len(%d) [% X]\n", n, packet)
 			}
 
-		case <-d.Run.Done():
-			close(d.writer)
+		case <-d.Done():
+			close(d.write)
 			return
 		}
 	}
-}
-
-func (d *Device) Do(cmd Command) {
-	d.writer <- cmd
 }
