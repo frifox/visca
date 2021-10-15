@@ -17,10 +17,11 @@ type Move struct {
 }
 
 func (c *Move) apply() bool {
-	max := 24.0
-	max = max * 0.5 // limit max to 50%!
-	xStep := byte(math.Ceil(max * math.Abs(c.X)))
-	yStep := byte(math.Ceil(max * math.Abs(c.Y)))
+	xMax := float64(0x18) * 0.5
+	xStep := byte(math.Ceil(xMax * math.Abs(c.X)))
+
+	yMax := float64(0x14) * 0.5
+	yStep := byte(math.Ceil(yMax * math.Abs(c.Y)))
 
 	// no changes?
 	if c.xStep == xStep && c.yStep == yStep {
