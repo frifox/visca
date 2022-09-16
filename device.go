@@ -2,6 +2,7 @@ package visca
 
 import (
 	"context"
+	"fmt"
 	"go.bug.st/serial"
 	"io"
 	"net"
@@ -13,6 +14,7 @@ type Device struct {
 	Path string
 
 	// one-shot commands
+	Raw        Raw
 	MoveHome   MoveHome
 	Focus      Focus
 	CallPreset CallPreset
@@ -59,6 +61,8 @@ type Async struct {
 
 func (d *Device) Apply(cmds ...Command) {
 	commands := map[Command]bool{
+		&d.Raw: true,
+
 		// one-shot commands
 		&d.CallPreset: true,
 		&d.SavePreset: true,
@@ -83,24 +87,27 @@ func (d *Device) Apply(cmds ...Command) {
 	}
 
 	for _, cmd := range cmds {
+		fmt.Printf("[Device.Apply] Received %T\n", cmd)
+
 		// make sure applied command is found,
 		// is allowed to be fired,
 		// and actually really needs firing
 		if allowed, found := commands[cmd]; found {
 			if !allowed {
-				//fmt.Printf("NOT ALLOWED\n")
+				fmt.Printf("[Device.Apply] NOT ALLOWED\n")
 				continue
 			}
 			if !cmd.apply() {
-				//fmt.Printf("NOT APPLIED\n")
+				fmt.Printf("[Device.Apply] NOT APPLIED\n")
 				continue
 			}
 
+			fmt.Printf("[Device.Apply] Sending to write chan\n")
 			d.write <- cmd
 			// good to go
 
 		} else {
-			//fmt.Printf("NOT FOUND\n")
+			fmt.Printf("[Device.Apply] NOT FOUND\n")
 		}
 	}
 }
@@ -154,7 +161,7 @@ func (d *Device) Run() {
 	go d.Writer()
 
 	// sync status
-	d.Apply(&d.AskMenuStatus)
+	//d.Apply(&d.AskMenuStatus)
 
 	<-d.Done()
 }

@@ -15,6 +15,15 @@ func (c *alwaysApply) apply() bool {
 
 // ungrouped commands
 
+type Raw struct {
+	alwaysApply
+	Bytes []byte
+}
+
+func (a *Raw) bytes() []byte {
+	return a.Bytes
+}
+
 type MoveHome struct {
 	alwaysApply
 }
