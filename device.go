@@ -87,18 +87,18 @@ func (d *Device) Apply(cmds ...Command) {
 	}
 
 	for _, cmd := range cmds {
-		fmt.Printf("[Device.Apply] Received %T\n", cmd)
+		//fmt.Printf("[Device.Apply] Received %T\n", cmd)
 
 		// make sure applied command is found,
 		// is allowed to be fired,
 		// and actually really needs firing
 		if allowed, found := commands[cmd]; found {
 			if !allowed {
-				fmt.Printf("[Device.Apply] NOT ALLOWED\n")
+				//fmt.Printf("[Device.Apply] NOT ALLOWED\n")
 				continue
 			}
 			if !cmd.apply() {
-				fmt.Printf("[Device.Apply] NOT APPLIED\n")
+				//fmt.Printf("[Device.Apply] NOT APPLIED\n")
 				continue
 			}
 
