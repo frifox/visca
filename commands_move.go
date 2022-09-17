@@ -7,21 +7,32 @@ import (
 )
 
 type Move struct {
-	X    float64
-	Y    float64
-	XMax float64
-	YMax float64
+	X      float64
+	Y      float64
+	StepsX float64
+	StepsY float64
 
-	xStep  uint8
-	yStep  uint8
+	xStep  int8
+	yStep  int8
 	device *Device
 
 	runtime [3]time.Time // [write, fin, fin]
 }
 
+func (c *Move) cmdType() interface{} {
+	return ViscaCommand{}
+}
+
 func (c *Move) apply() bool {
-	xStep := byte(math.Ceil(c.XMax * math.Abs(c.X)))
-	yStep := byte(math.Ceil(c.YMax * math.Abs(c.Y)))
+	xStep := int8(math.Ceil(c.StepsX * math.Abs(c.X)))
+	yStep := int8(math.Ceil(c.StepsY * math.Abs(c.Y)))
+
+	if c.X < 0 {
+		xStep = -xStep
+	}
+	if c.Y < 0 {
+		yStep = -yStep
+	}
 
 	// no changes?
 	if c.xStep == xStep && c.yStep == yStep {
@@ -39,15 +50,23 @@ func (c *Move) bytes() []byte {
 	packet := bytes.Buffer{}
 
 	// header
-	packet.WriteByte(0x1)
-	packet.WriteByte(0x6)
-	packet.WriteByte(0x1)
+	packet.Write([]byte{0x1, 0x6, 0x1})
 
-	// speed
-	packet.WriteByte(c.xStep)
-	packet.WriteByte(c.yStep)
+	// X speed
+	xStep := c.xStep
+	if xStep < 0 {
+		xStep = -xStep
+	}
+	packet.WriteByte(byte(xStep))
 
-	// x-axis direction
+	// Y speed
+	yStep := c.yStep
+	if yStep < 0 {
+		yStep = -yStep
+	}
+	packet.WriteByte(byte(yStep))
+
+	// X direction
 	switch true {
 	case c.X > 0:
 		packet.WriteByte(0x2) // right
@@ -57,7 +76,7 @@ func (c *Move) bytes() []byte {
 		packet.WriteByte(0x3) // none
 	}
 
-	// y-axis direction
+	// Y direction
 	switch true {
 	case c.Y > 0:
 		packet.WriteByte(0x1) // up
@@ -68,4 +87,18 @@ func (c *Move) bytes() []byte {
 	}
 
 	return packet.Bytes()
+}
+
+type RampCurve struct {
+	Value uint8
+}
+
+func (c *RampCurve) cmdType() interface{} {
+	return ViscaCommand{}
+}
+func (c RampCurve) apply() bool {
+	return true
+}
+func (c RampCurve) bytes() []byte {
+	return []byte{0x1, 0x6, 0x31, c.Value}
 }

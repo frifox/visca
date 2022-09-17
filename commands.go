@@ -5,7 +5,14 @@ import "time"
 type Command interface {
 	apply() bool   // do we need to write to camera?
 	bytes() []byte // command bytes for writing
+	cmdType() interface{}
 }
+type ViscaCommand struct{}
+type ViscaInquiry struct{}
+type ViscaReply struct{}
+type DeviceSettingCommand struct{}
+type ControlCommand struct{}
+type ControlCommandReply struct{}
 
 type alwaysApply struct{}
 
@@ -13,13 +20,26 @@ func (c *alwaysApply) apply() bool {
 	return true
 }
 
-// ungrouped commands
+type SeqReset struct{}
+
+func (SeqReset) apply() bool {
+	return true
+}
+func (SeqReset) cmdType() interface{} {
+	return ControlCommand{}
+}
+func (SeqReset) bytes() []byte {
+	return []byte{0x1}
+}
 
 type Raw struct {
 	alwaysApply
 	Bytes []byte
 }
 
+func (Raw) cmdType() interface{} {
+	return ViscaCommand{}
+}
 func (a *Raw) bytes() []byte {
 	return a.Bytes
 }
