@@ -2,128 +2,63 @@ package visca
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"go.bug.st/serial"
 	"io"
 	"net"
 	"strings"
-	"time"
+	"sync"
+)
+
+const (
+	SonySRGX400 = "Sony SRG-X400"
 )
 
 type Device struct {
-	Path string
+	Path   string
+	Type   string
+	Config Config
+	State  State
 
-	// one-shot commands
-	SeqReset SeqReset
-	Raw      Raw
+	conn       io.ReadWriter
+	remoteAddr *net.UDPAddr
 
-	MoveHome   MoveHome
-	Focus      Focus
-	CallPreset CallPreset
-	SavePreset SavePreset
-
-	OSDToggle OSDToggle
-	osdIsOpen bool
-	OSDEnter  OSDEnter
-	OSDReturn OSDReturn
-	OSDUp     OSDUp
-	OSDRight  OSDRight
-	OSDDown   OSDDown
-	OSDLeft   OSDLeft
-
-	// info inquiries
-	AskMenuStatus AskMenuStatus
-
-	// stateful commands
-	Move      Move
-	RampCurve RampCurve
-
-	Zoom   Zoom
-	ZoomTo ZoomTo
-
-	port     io.ReadWriter
-	portUDP  bool
-	read     chan []byte
-	write    chan Command
-	writeSeq uint32
+	read        chan []byte
+	write       chan []byte
+	writeSeq    uint32
+	writeSeqCmd sync.Map
 
 	context.Context
 	Close context.CancelFunc
+
+	Booting *sync.WaitGroup
+
+	PanTiltQueue PanTiltQueue
+	PanTiltReady sync.WaitGroup
+	ZoomQueue    ZoomQueue
+	ZoomReady    sync.WaitGroup
 }
 
-type Async struct {
-	cmd Command
-
-	id     int
-	sentAt time.Time
-
-	accepted   bool
-	acceptedAt time.Time
-
-	finished   bool
-	finishedAt time.Time
-
-	latency time.Duration
+type Config struct {
+	XMaxSpeed float64
+	YMaxSpeed float64
+	ZMaxSpeed float64
 }
 
-func (d *Device) Apply(cmds ...Command) {
-	commands := map[Command]bool{
-		&d.Raw:      true,
-		&d.SeqReset: true,
-
-		// one-shot commands
-		//&d.CallPreset: true,
-		//&d.SavePreset: true,
-
-		//&d.MoveHome: true,
-		//&d.Focus:    true,
-
-		//&d.OSDToggle: true,
-		//&d.OSDEnter:  true,
-		//&d.OSDReturn: true,
-		//&d.OSDUp:     true,
-		//&d.OSDRight:  true,
-		//&d.OSDDown:   true,
-		//&d.OSDLeft:   true,
-
-		// stateful commands
-		&d.Move:      true,
-		&d.RampCurve: true,
-		&d.ZoomTo:    true,
-		//&d.Zoom: true,
-
-		// inquiries
-		//&d.AskMenuStatus: true,
-	}
-
-	for _, cmd := range cmds {
-		fmt.Printf("[Device.Apply] Received %T\n", cmd)
-
-		// make sure applied command is found,
-		// is allowed to be fired,
-		// and actually really needs firing
-		if allowed, found := commands[cmd]; found {
-			if !allowed {
-				fmt.Printf("[Device.Apply] NOT ALLOWED\n")
-				continue
-			}
-			if !cmd.apply() {
-				fmt.Printf("[Device.Apply] NOT APPLIED\n")
-				continue
-			}
-
-			fmt.Printf("[Device.Apply] Sending to write chan\n")
-			d.write <- cmd
-			// good to go
-
-		} else {
-			fmt.Printf("[Device.Apply] NOT FOUND\n")
-		}
-	}
+type State struct {
+	PanTiltDrive        PanTiltDrive
+	PanTiltDriveLastSeq *uint32
+	Zoom                Zoom
+	ZoomLastSeq         *uint32
+	ExposureMode        ExposureMode
+	Power               Power
 }
 
 func (d *Device) Find() (err error) {
 	d.Context, d.Close = context.WithCancel(context.Background())
+	d.Booting = &sync.WaitGroup{}
+	d.Booting.Add(1)
 
 	if strings.HasPrefix(d.Path, "/") {
 		mode := serial.Mode{
@@ -132,45 +67,150 @@ func (d *Device) Find() (err error) {
 			Parity:   serial.NoParity,
 			StopBits: serial.OneStopBit,
 		}
-		if d.port, err = serial.Open(d.Path, &mode); err != nil {
+		if d.conn, err = serial.Open(d.Path, &mode); err != nil {
 			return
 		}
 	}
 	if strings.HasPrefix(d.Path, "tcp://") {
 		addr := strings.TrimPrefix(d.Path, "tcp://")
-		d.port, err = net.Dial("tcp", addr)
+		d.conn, err = net.Dial("tcp", addr)
 		if err != nil {
 			return
 		}
 	}
 	if strings.HasPrefix(d.Path, "udp://") {
-		addr := strings.TrimPrefix(d.Path, "udp://")
-		d.port, err = net.Dial("udp", addr)
+		d.remoteAddr, err = net.ResolveUDPAddr("udp4", strings.TrimPrefix(d.Path, "udp://"))
 		if err != nil {
+			fmt.Printf(">> net.ResolveUDPAddr ERROR %v\n", err)
 			return
 		}
+
+		d.conn, err = net.ListenUDP("udp4", &net.UDPAddr{
+			IP:   net.ParseIP("0.0.0.0"),
+			Port: 52381, // seems to be hardcoded in camera
+		})
+		if err != nil {
+			fmt.Printf(">> net.ListenUDP ERROR %v\n", err)
+			return
+		}
+
+		//d.port, err = net.DialUDP("udp", nil, udpAddr)
+		//if err != nil {
+		//	fmt.Printf(">> net.DialUDP ERROR %v\n", err)
+		//	return
+		//}
 	}
 	if strings.HasPrefix(d.Path, "test://") {
-		d.port = &RW{}
+		d.conn = &RW{}
 	}
 
 	return
 }
 func (d *Device) Found() bool {
-	return d.port != nil
+	return d.conn != nil
 }
 
 func (d *Device) Run() {
+	d.PanTiltQueue = PanTiltQueue{}
+	d.PanTiltQueue.Init()
+	go d.PanTiltQueueWorker()
+
+	d.ZoomQueue = ZoomQueue{}
+	d.ZoomQueue.Init()
+	go d.ZoomQueueWorker()
+
+	//d.writeSeqCmd = make(map[uint32]Cmd)
 	go d.Reader()
 
 	d.read = make(chan []byte)
 	go d.readHandler()
 
-	d.write = make(chan Command)
+	d.write = make(chan []byte)
 	go d.Writer()
 
+	d.Booting.Done()
 	// sync status
-	//d.Apply(&d.AskMenuStatus)
+
+	d.Do(&SeqReset{})
+	d.Do(&InqPower{})
 
 	<-d.Done()
+}
+
+func (d *Device) Do(cmd Cmd, preApproved ...bool) {
+	var data []byte
+
+	// Cmd triggered via Fin is usually pre-approved, no need to check apply/send
+	if len(preApproved) == 0 {
+		if applied := cmd.Apply(d); !applied {
+			return
+		}
+		fmt.Printf("[Device.Do] Applied %s\n", cmd)
+
+		if cmd, ok := cmd.(CmdSendable); ok {
+			if send := cmd.Send(d); !send {
+				return
+			}
+		}
+		fmt.Printf("[Device.Do] Sending %s\n", cmd)
+	}
+
+	switch cmd := cmd.(type) {
+	case ViscaCommand:
+		data = append(data, 0x1, 0x0)
+		data = append(data, pLen2(cmd.ViscaCommand())...)
+		data = append(data, d.pSeq4()...)
+		data = append(data, cmd.ViscaCommand()...)
+	case ViscaInquiry:
+		data = append(data, 0x1, 0x10)
+		data = append(data, pLen2(cmd.ViscaInquiry())...)
+		data = append(data, d.pSeq4()...)
+		data = append(data, cmd.ViscaInquiry()...)
+	case ViscaReply:
+		//data = append(data, 0x1, 0x11)
+	case DeviceSettingCommand:
+		//data = append(data, 0x1, 0x20)
+	case ControlCommand:
+		data = append(data, 0x2, 0x0)
+		data = append(data, pLen2(cmd.ControlCommand())...)
+		data = append(data, d.pSeq4()...)
+		data = append(data, cmd.ControlCommand()...)
+	case ControlCommandReply:
+		//data = append(data, 0x2, 0x1)
+	default:
+		fmt.Printf("ERROR unsupported cmd\n")
+		return
+	}
+
+	// keep track of all sent Cmds
+	seq := d.writeSeq - 1
+	d.writeSeqCmd.Store(seq, cmd)
+
+	if _, ok := cmd.(*PanTiltDrive); ok {
+		d.State.PanTiltDriveLastSeq = &seq
+	}
+	if _, ok := cmd.(*Zoom); ok {
+		d.State.ZoomLastSeq = &seq
+	}
+
+	// send it
+	d.write <- data
+	if cmd, ok := cmd.(CmdWaitable); ok {
+		go cmd.WaitReply(d)
+	}
+
+	fmt.Printf("[Device.Do] Wrote %s\n", cmd)
+}
+
+func pLen2(payload []byte) []byte {
+	length := make([]byte, 2)
+	binary.BigEndian.PutUint16(length, uint16(len(payload)))
+	return length
+}
+func (d *Device) pSeq4() []byte {
+	seq := make([]byte, 4)
+	binary.BigEndian.PutUint32(seq, d.writeSeq)
+	d.writeSeq++
+
+	return seq
 }
