@@ -1,14 +1,27 @@
 package visca
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 type Power struct {
 	On  bool
 	cmd uint8
+
+	context.Context
+	context.CancelFunc
 }
 
 func (c *Power) String() string {
 	return fmt.Sprintf("Power{%X}", c.cmd)
+}
+
+func (c *Power) InitContext() {
+	c.Context, c.CancelFunc = context.WithCancel(context.Background())
+}
+func (c *Power) Finish() {
+	c.CancelFunc()
 }
 
 func (c *Power) Apply(device *Device) bool {
@@ -31,6 +44,10 @@ func (c *Power) ViscaCommand() []byte {
 }
 
 func (c *Power) HandleReply(data []byte, device *Device) {
+	if c.Err() == nil {
+		c.CancelFunc()
+	}
+
 	if len(data) < 2 {
 		fmt.Printf("[Power.HandleReply] BAD REPLY [% X]\n", data)
 		return

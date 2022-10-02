@@ -1,24 +1,34 @@
 package visca
 
 import (
+	"context"
 	"fmt"
 	"math"
-	"time"
 )
 
 type Zoom struct {
 	Z float64
 	z int8
 
-	ack     bool
-	fin     bool
-	ackChan chan bool
-	finChan chan bool
-	start   time.Time
+	//ack     bool
+	//fin     bool
+	//ackChan chan bool
+	//finChan chan bool
+	//start   time.Time
+
+	context.Context
+	context.CancelFunc
 }
 
 func (c *Zoom) String() string {
 	return fmt.Sprintf("Zoom{z:%d}", c.z)
+}
+
+func (c *Zoom) InitContext() {
+	c.Context, c.CancelFunc = context.WithCancel(context.Background())
+}
+func (c *Zoom) Finish() {
+	c.CancelFunc()
 }
 
 func (c *Zoom) Apply(device *Device) bool {
@@ -48,9 +58,9 @@ func (c *Zoom) Apply(device *Device) bool {
 	device.State.Zoom.Z = c.Z
 	device.State.Zoom.z = c.z
 
-	c.start = time.Now()
-	c.ackChan = make(chan bool)
-	c.finChan = make(chan bool)
+	//c.start = time.Now()
+	//c.ackChan = make(chan bool)
+	//c.finChan = make(chan bool)
 
 	return true
 }
@@ -91,31 +101,31 @@ func (c *Zoom) ViscaCommand() []byte {
 	return data
 }
 
-func (c *Zoom) WaitReply(device *Device) {
-	go c.WaitAck(device)
-	go c.WaitFin(device)
-}
-
-func (c *Zoom) WaitAck(device *Device) {
-	select {
-	case <-time.After(time.Millisecond * 100):
-		fmt.Printf(">> Zoom ACK timeout!\n")
-	case <-c.ackChan:
-		//fmt.Printf(">> Zoom ACK %d ms\n", time.Now().Sub(c.start).Milliseconds())
-	}
-
-	device.ZoomReady.Done()
-}
-func (c *Zoom) WaitFin(device *Device) {
-	select {
-	case <-time.After(time.Millisecond * 100):
-		fmt.Printf(">> Zoom FIN timeout!\n")
-	case <-c.finChan:
-		//fmt.Printf(">> Zoom FIN %d ms\n", time.Now().Sub(c.start).Milliseconds())
-	}
-
-	device.ZoomReady.Done()
-}
+//func (c *Zoom) WaitReply(device *Device) {
+//	go c.WaitAck(device)
+//	go c.WaitFin(device)
+//}
+//
+//func (c *Zoom) WaitAck(device *Device) {
+//	select {
+//	case <-time.After(time.Millisecond * 100):
+//		fmt.Printf(">> Zoom ACK timeout!\n")
+//	case <-c.ackChan:
+//		//fmt.Printf(">> Zoom ACK %d ms\n", time.Now().Sub(c.start).Milliseconds())
+//	}
+//
+//	device.ZoomReady.Done()
+//}
+//func (c *Zoom) WaitFin(device *Device) {
+//	select {
+//	case <-time.After(time.Millisecond * 100):
+//		fmt.Printf(">> Zoom FIN timeout!\n")
+//	case <-c.finChan:
+//		//fmt.Printf(">> Zoom FIN %d ms\n", time.Now().Sub(c.start).Milliseconds())
+//	}
+//
+//	device.ZoomReady.Done()
+//}
 
 func (c *Zoom) HandleReply(data []byte, device *Device) {
 	if len(data) < 2 {
@@ -123,14 +133,11 @@ func (c *Zoom) HandleReply(data []byte, device *Device) {
 		return
 	}
 	switch data[1] & 0xf0 {
-	case 0x40:
-		//fmt.Printf("[Zoom.HandleReply] ACK\n")
-		c.ack = true
-		c.ackChan <- true
-	case 0x50:
-		//fmt.Printf("[Zoom.HandleReply] Fin\n")
-		c.fin = true
-		c.finChan <- true
+	case 0x40: // ack
+	case 0x50: // fin
+		if c.Err() == nil {
+			c.CancelFunc()
+		}
 	default:
 		fmt.Printf("[Zoom.HandleReply] Unknown [% X]\n", data)
 	}

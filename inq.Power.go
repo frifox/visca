@@ -1,22 +1,26 @@
 package visca
 
 import (
+	"context"
 	"fmt"
 )
 
 type InqPower struct {
 	On bool
+
+	context.Context
+	context.CancelFunc
 }
 
 func (c *InqPower) String() string {
 	return fmt.Sprintf("InqPower{}")
 }
 
-func (c *InqPower) Apply(device *Device) bool {
-	return true
+func (c *InqPower) InitContext() {
+	c.Context, c.CancelFunc = context.WithCancel(context.Background())
 }
-func (c *InqPower) Send(device *Device) bool {
-	return true
+func (c *InqPower) Finish() {
+	c.CancelFunc()
 }
 
 func (c *InqPower) ViscaCommand() []byte {
@@ -26,6 +30,10 @@ func (c *InqPower) ViscaCommand() []byte {
 }
 
 func (c *InqPower) HandleReply(data []byte, device *Device) {
+	if c.Err() == nil {
+		c.CancelFunc()
+	}
+
 	if len(data) != 4 {
 		fmt.Printf("[InqPower.HandleReply] BAD REPLY [% X]\n", data)
 		return

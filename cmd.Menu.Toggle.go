@@ -1,15 +1,24 @@
 package visca
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
-type MenuToggle struct{}
+type MenuToggle struct {
+	context.Context
+	context.CancelFunc
+}
 
 func (c *MenuToggle) String() string {
 	return fmt.Sprintf("MenuToggle{}")
 }
 
-func (c *MenuToggle) Apply(device *Device) bool {
-	return true
+func (c *MenuToggle) InitContext() {
+	c.Context, c.CancelFunc = context.WithCancel(context.Background())
+}
+func (c *MenuToggle) Finish() {
+	c.CancelFunc()
 }
 
 func (c *MenuToggle) ViscaCommand() []byte {
@@ -20,5 +29,7 @@ func (c *MenuToggle) ViscaCommand() []byte {
 }
 
 func (c *MenuToggle) HandleReply(data []byte, device *Device) {
-	// TODO
+	if c.Err() == nil {
+		c.CancelFunc()
+	}
 }

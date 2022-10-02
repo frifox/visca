@@ -9,6 +9,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -24,6 +25,7 @@ type Device struct {
 	conn       io.ReadWriter
 	remoteAddr *net.UDPAddr
 
+	do          chan Cmd
 	read        chan []byte
 	write       chan []byte
 	writeSeq    uint32
@@ -44,6 +46,8 @@ type Config struct {
 	XMaxSpeed float64
 	YMaxSpeed float64
 	ZMaxSpeed float64
+
+	LocalUDP string
 }
 
 type State struct {
@@ -85,10 +89,8 @@ func (d *Device) Find() (err error) {
 			return
 		}
 
-		d.conn, err = net.ListenUDP("udp4", &net.UDPAddr{
-			IP:   net.ParseIP("0.0.0.0"),
-			Port: 52381, // seems to be hardcoded in camera
-		})
+		ip, _ := net.ResolveUDPAddr("udp", d.Config.LocalUDP)
+		d.conn, err = net.ListenUDP("udp4", ip)
 		if err != nil {
 			fmt.Printf(">> net.ListenUDP ERROR %v\n", err)
 			return
@@ -119,6 +121,10 @@ func (d *Device) Run() {
 	d.ZoomQueue.Init()
 	go d.ZoomQueueWorker()
 
+	d.do = make(chan Cmd)
+	//go d.DoWorker()
+	go d.DoWorker()
+
 	//d.writeSeqCmd = make(map[uint32]Cmd)
 	go d.Reader()
 
@@ -137,55 +143,79 @@ func (d *Device) Run() {
 	<-d.Done()
 }
 
-func (d *Device) Do(cmd Cmd, preApproved ...bool) {
-	var data []byte
+func (d *Device) Do(cmd Cmd, alreadyApplied ...bool) {
+	fmt.Printf("[Do] %s\n", cmd)
 
-	// Cmd triggered via Fin is usually pre-approved, no need to check apply/send
-	if len(preApproved) == 0 {
-		if applied := cmd.Apply(d); !applied {
-			return
-		}
-		fmt.Printf("[Device.Do] Applied %s\n", cmd)
-
-		if cmd, ok := cmd.(CmdSendable); ok {
-			if send := cmd.Send(d); !send {
+	if len(alreadyApplied) == 0 {
+		if cmd, ok := cmd.(CmdAppliable); ok {
+			okToSend := cmd.Apply(d)
+			if !okToSend {
+				//fmt.Printf(">> not sending\n")
 				return
 			}
 		}
-		fmt.Printf("[Device.Do] Sending %s\n", cmd)
 	}
 
+	d.do <- cmd
+}
+
+func (d *Device) DoWorker() {
+	for {
+		cmd := <-d.do
+
+		fmt.Printf("[Device.DoWordker] Sending %s\n", cmd)
+
+		// retry until ack
+		for {
+			d.writeSeq++
+			if _, ok := cmd.(*SeqReset); ok {
+				d.writeSeq = 0
+			}
+
+			ack := d.sendAndWaitForAck(cmd, d.writeSeq)
+			if ack {
+				break
+			}
+
+			fmt.Printf(">> retrying %s\n", cmd)
+		}
+	}
+}
+
+func (d *Device) sendAndWaitForAck(cmd Cmd, seq uint32) bool {
+	cmd.InitContext()
+
+	// build packet
+	var data []byte
 	switch cmd := cmd.(type) {
 	case ViscaCommand:
 		data = append(data, 0x1, 0x0)
 		data = append(data, pLen2(cmd.ViscaCommand())...)
-		data = append(data, d.pSeq4()...)
+		data = append(data, d.pSeq4(seq)...)
 		data = append(data, cmd.ViscaCommand()...)
 	case ViscaInquiry:
 		data = append(data, 0x1, 0x10)
 		data = append(data, pLen2(cmd.ViscaInquiry())...)
-		data = append(data, d.pSeq4()...)
+		data = append(data, d.pSeq4(seq)...)
 		data = append(data, cmd.ViscaInquiry()...)
-	case ViscaReply:
-		//data = append(data, 0x1, 0x11)
-	case DeviceSettingCommand:
-		//data = append(data, 0x1, 0x20)
 	case ControlCommand:
 		data = append(data, 0x2, 0x0)
 		data = append(data, pLen2(cmd.ControlCommand())...)
-		data = append(data, d.pSeq4()...)
+		data = append(data, d.pSeq4(seq)...)
 		data = append(data, cmd.ControlCommand()...)
-	case ControlCommandReply:
-		//data = append(data, 0x2, 0x1)
+	//case ViscaReply:
+	//data = append(data, 0x1, 0x11)
+	//case DeviceSettingCommand:
+	//data = append(data, 0x1, 0x20)
+	//case ControlCommandReply:
+	//data = append(data, 0x2, 0x1)
 	default:
 		fmt.Printf("ERROR unsupported cmd\n")
-		return
+		return true
 	}
 
 	// keep track of all sent Cmds
-	seq := d.writeSeq - 1
 	d.writeSeqCmd.Store(seq, cmd)
-
 	if _, ok := cmd.(*PanTiltDrive); ok {
 		d.State.PanTiltDriveLastSeq = &seq
 	}
@@ -195,11 +225,18 @@ func (d *Device) Do(cmd Cmd, preApproved ...bool) {
 
 	// send it
 	d.write <- data
-	if cmd, ok := cmd.(CmdWaitable); ok {
-		go cmd.WaitReply(d)
-	}
+	//if cmd, ok := cmd.(CmdWaitable); ok {
+	//	go cmd.WaitReply(d)
+	//}
 
-	fmt.Printf("[Device.Do] Wrote %s\n", cmd)
+	// wait for ack
+	select {
+	case <-time.After(time.Millisecond * 500):
+		cmd.Finish()
+		return false
+	case <-cmd.Done():
+		return true
+	}
 }
 
 func pLen2(payload []byte) []byte {
@@ -207,10 +244,9 @@ func pLen2(payload []byte) []byte {
 	binary.BigEndian.PutUint16(length, uint16(len(payload)))
 	return length
 }
-func (d *Device) pSeq4() []byte {
+func (d *Device) pSeq4(seqInt uint32) []byte {
 	seq := make([]byte, 4)
-	binary.BigEndian.PutUint32(seq, d.writeSeq)
-	d.writeSeq++
+	binary.BigEndian.PutUint32(seq, seqInt)
 
 	return seq
 }

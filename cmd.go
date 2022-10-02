@@ -1,6 +1,9 @@
 package visca
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 // first/last bytes
 const (
@@ -23,16 +26,20 @@ const (
 )
 
 type Cmd interface {
-	Apply(*Device) bool
 	String() string
 	HandleReply([]byte, *Device)
+
+	InitContext()
+	context.Context
+	Finish()
 }
-type CmdSendable interface {
-	Send(*Device) bool
+type CmdAppliable interface {
+	Apply(*Device) bool
 }
-type CmdWaitable interface {
-	WaitReply(*Device)
-}
+
+//type CmdWaitable interface {
+//	WaitReply(*Device)
+//}
 
 type ViscaCommand interface {
 	ViscaCommand() []byte
@@ -66,9 +73,6 @@ type Raw struct {
 func (c *Raw) String() string {
 	return fmt.Sprintf("Raw{% X}", c.Cmd)
 }
-func (c *Raw) Apply(device *Device) bool {
-	return true
-}
 func (c *Raw) ViscaCommand() []byte {
 	data := []byte{CamID}
 	data = append(data, c.Cmd...)
@@ -76,5 +80,5 @@ func (c *Raw) ViscaCommand() []byte {
 	return data
 }
 func (c *Raw) HandleReply(data []byte, device *Device) {
-	// TODO
+	fmt.Printf(">> Raw Reply: [% X]\n", data)
 }
