@@ -10,11 +10,6 @@ import (
 
 func (d *Device) PanTiltQueueWorker() {
 	for {
-		// wait for camera to be ready
-		//fmt.Printf(">> waiting ptready\n")
-		//d.PanTiltReady.Wait()
-		//fmt.Printf(">> ptready\n")
-
 		// wait for cmd
 		//fmt.Printf(">> waiting queue\n")
 		cmd := d.PanTiltQueue.Get()
@@ -29,7 +24,6 @@ func (d *Device) PanTiltQueueWorker() {
 
 		// send it to camera
 		//fmt.Printf(">> doing cmd\n")
-		//d.PanTiltReady.Add(2)
 		d.Do(cmd, true)
 		//fmt.Printf(">> cmd do'ed\n")
 	}
@@ -37,11 +31,6 @@ func (d *Device) PanTiltQueueWorker() {
 
 func (d *Device) ZoomQueueWorker() {
 	for {
-		// wait for camera to be ready
-		//fmt.Printf(">> waiting ptready\n")
-		//d.ZoomReady.Wait()
-		//fmt.Printf(">> ptready\n")
-
 		// wait for cmd
 		//fmt.Printf(">> waiting queue\n")
 		cmd := d.ZoomQueue.Get()
@@ -56,7 +45,6 @@ func (d *Device) ZoomQueueWorker() {
 
 		// send it to camera
 		//fmt.Printf(">> doing cmd\n")
-		//d.ZoomReady.Add(2)
 		d.Do(cmd, true)
 		//fmt.Printf(">> cmd do'ed\n")
 	}
