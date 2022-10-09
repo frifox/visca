@@ -27,7 +27,7 @@ func (c *FocusTrigger) HandleReply(data []byte, device *Device) {
 		return
 	}
 
-	p := data[1] & 0xf0
+	p := data[0] & 0xf0
 	switch p {
 	case 0x40:
 		fmt.Printf("[FocusTrigger.HandleReply] ACK\n")
