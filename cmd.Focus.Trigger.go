@@ -4,14 +4,12 @@ import (
 	"fmt"
 )
 
-type FocusTrigger struct{}
-
-func (c *FocusTrigger) String() string {
-	return fmt.Sprintf("FocusTrigger{}")
+type FocusTrigger struct {
+	CmdContext
 }
 
-func (c *FocusTrigger) Apply(device *Device) bool {
-	return true
+func (c *FocusTrigger) String() string {
+	return fmt.Sprintf("%T{}", *c)
 }
 
 func (c *FocusTrigger) ViscaCommand() []byte {
@@ -22,14 +20,18 @@ func (c *FocusTrigger) ViscaCommand() []byte {
 }
 
 func (c *FocusTrigger) HandleReply(data []byte, device *Device) {
-	if len(data) < 2 {
+	c.Finish()
+
+	if len(data) != 1 {
 		fmt.Printf("[FocusTrigger.HandleReply] BAD REPLY [% X]\n", data)
 		return
 	}
-	switch data[1] {
-	case 0x41:
+
+	p := data[1] & 0xf0
+	switch p {
+	case 0x40:
 		fmt.Printf("[FocusTrigger.HandleReply] ACK\n")
-	case 0x51:
+	case 0x50:
 		fmt.Printf("[FocusTrigger.HandleReply] FIN\n")
 	default:
 		fmt.Printf("[FocusTrigger.HandleReply] Unknown [% X]\n", data)
