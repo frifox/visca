@@ -13,8 +13,8 @@ func (c *FocusTrigger) String() string {
 }
 
 func (c *FocusTrigger) ViscaCommand() []byte {
-	data := []byte{CamID, doCommand, toCamera, 0x18}
-	data = append(data, 0x1)
+	data := []byte{CamID, doCommand, toCamera, 0x38}
+	data = append(data, 0x2)
 	data = append(data, EOL)
 	return data
 }
