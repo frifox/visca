@@ -7,9 +7,14 @@ import (
 )
 
 func main() {
-	cam := visca.Device{
-		Path: "udp://10.0.0.10:52381",
-		Type: visca.SonySRGX400,
+	cam := &visca.Device{
+		Path: "udp://10.0.0.213:52381",
+		Config: visca.Config{
+			LocalUDP:  ":52381",
+			XMaxSpeed: 20.0 / 24.0,
+			YMaxSpeed: 20.0 / 24.0,
+			ZMaxSpeed: 8.0 / 8.0,
+		},
 	}
 
 	fmt.Printf("Looking for camera at %s\n", cam.Path)
@@ -26,70 +31,12 @@ func main() {
 	fmt.Printf("Running camera\n")
 	go cam.Run()
 	cam.Booting.Wait()
+	time.Sleep(time.Millisecond * 100)
 
-	// init
-	cam.Do(&visca.SeqReset{})
-	cam.Do(&visca.Power{On: true})
+	cam.Do(&visca.InqKneeSlope{})
+	time.Sleep(time.Millisecond * 100)
+	fmt.Printf("%s\n", cam.Inquiry.InqKneeSlope)
 
-	// for manual PTZ recall
-	pos := visca.InqPanTiltPosition{}
-	cam.Do(&pos)
-	zoom := visca.InqZoom{}
-	cam.Do(&zoom)
-
-	// zoom
-	cam.Do(&visca.Zoom{Z: 1})
-	time.Sleep(time.Second / 2)
-	cam.Do(&visca.Zoom{Z: -1})
-	time.Sleep(time.Second / 2)
-	cam.Do(&visca.Zoom{})
-	time.Sleep(time.Second / 2)
-
-	// pan
-	cam.Do(&visca.PanTiltDrive{X: 0.5})
-	time.Sleep(time.Second / 2)
-	cam.Do(&visca.PanTiltDrive{X: -0.5})
-	time.Sleep(time.Second / 2)
-	cam.Do(&visca.PanTiltDrive{})
-	time.Sleep(time.Second / 2)
-
-	// tilt
-	cam.Do(&visca.PanTiltDrive{Y: 0.5})
-	time.Sleep(time.Second / 2)
-	cam.Do(&visca.PanTiltDrive{Y: -0.5})
-	time.Sleep(time.Second / 2)
-	cam.Do(&visca.PanTiltDrive{})
-	time.Sleep(time.Second / 2)
-
-	// set preset
-	cam.Do(&visca.PresetSet{
-		ID: 1,
-	})
-
-	// recall abs PTZ
-	cam.Do(&visca.PanTiltDriveAbs{
-		X: pos.X, SpeedX: 1,
-		Y: pos.Y, SpeedY: 1,
-	})
-	cam.Do(&visca.ZoomAbs{
-		Z: zoom.Z,
-	})
-	time.Sleep(time.Second)
-
-	// recall preset
-	cam.Do(&visca.PresetRecall{
-		ID: 1,
-	})
-	time.Sleep(time.Second)
-
-	// TODO
-	// menu toggle
-	// enter
-	// arrow keys
-
-	// TODO
-	// state OnChange closures
-
-	cam.Close()
-	fmt.Printf("Camera done\n")
+	//cam.Close()
+	//fmt.Printf("Camera done\n")
 }

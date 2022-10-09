@@ -9,18 +9,18 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"time"
 )
 
 const (
-	SonySRGX400 = "Sony SRG-X400"
+//SonySRGX400 = "Sony SRG-X400"
 )
 
 type Device struct {
-	Path   string
-	Type   string
-	Config Config
-	State  State
+	Path string
+	//Type   string
+	Config  Config
+	State   State
+	Inquiry Inquiry
 
 	conn       io.ReadWriter
 	remoteAddr *net.UDPAddr
@@ -55,8 +55,69 @@ type State struct {
 	PanTiltDriveLastSeq *uint32
 	Zoom                Zoom
 	ZoomLastSeq         *uint32
-	ExposureMode        ExposureMode
-	Power               Power
+
+	ExposureMode ExposureMode
+	Power        Power
+}
+
+type Inquiry struct {
+	InqPower           *InqPower
+	InqZoom            *InqZoom
+	InqPanTiltPosition *InqPanTiltPosition
+
+	InqExposureMode                        *InqExposureMode
+	InqExposureIris                        *InqExposureIris
+	InqExposureGain                        *InqExposureGain
+	InqExposureGainLimit                   *InqExposureGainLimit
+	InqExposureGainPoint                   *InqExposureGainPoint
+	InqExposureGainPointPosition           *InqExposureGainPointPosition
+	InqExposureShutter                     *InqExposureShutter
+	InqExposureShutterMax                  *InqExposureShutterMax
+	InqExposureShutterMin                  *InqExposureShutterMin
+	InqExposureAESpeed                     *InqExposureAESpeed
+	InqExposureComp                        *InqExposureComp
+	InqExposureCompLevel                   *InqExposureCompLevel
+	InqExposureBackLight                   *InqExposureBackLight
+	InqExposureSpotLight                   *InqExposureSpotLight
+	InqExposureVisibilityEnhancer          *InqExposureVisibilityEnhancer
+	InqExposureVisibilityEnhancerInfo      *InqExposureVisibilityEnhancerInfo
+	InqExposureLowLightBasisBrightness     *InqExposureLowLightBasisBrightness
+	InqExposureLowLightBasisBrightnessInfo *InqExposureLowLightBasisBrightnessInfo
+	InqExposureNDFilter                    *InqExposureNDFilter
+
+	InqColorWhiteBalanceMode *InqColorWhiteBalanceMode
+	InqColorRedGain          *InqColorRedGain
+	InqColorBlueGain         *InqColorBlueGain
+	InqColorSpeed            *InqColorSpeed
+	InqColorOffset           *InqColorOffset
+	InqColorChromaSuppress   *InqColorChromaSuppress
+	InqColorMatrix           *InqColorMatrix
+	InqColorLevel            *InqColorLevel
+	InqColorPhase            *InqColorPhase
+	InqColorRG               *InqColorRG
+	InqColorRB               *InqColorRB
+	InqColorGR               *InqColorGR
+	InqColorGB               *InqColorGB
+	InqColorBR               *InqColorBR
+	InqColorBG               *InqColorBG
+
+	InqDetailLevel           *InqDetailLevel
+	InqDetailMode            *InqDetailMode
+	InqDetailBandwidth       *InqDetailBandwidth
+	InqDetailCrispening      *InqDetailCrispening
+	InqDetailHVBalance       *InqDetailHVBalance
+	InqDetailBWBalance       *InqDetailBWBalance
+	InqDetailLimit           *InqDetailLimit
+	InqDetailHighlightDetail *InqDetailHighlightDetail
+	InqDetailLowerLow        *InqDetailLowerLow
+
+	InqKneeSetting *InqKneeSetting
+	InqKneeMode    *InqKneeMode
+	InqKneeSlope   *InqKneeSlope
+	InqKneePoint   *InqKneePoint
+
+	InqGammaMode    *InqGammaMode
+	InqGammaPattern *InqGammaPattern
 }
 
 func (d *Device) Find() (err error) {
@@ -163,7 +224,7 @@ func (d *Device) DoWorker() {
 	for {
 		cmd := <-d.do
 
-		fmt.Printf("[Device.DoWordker] Sending %s\n", cmd)
+		fmt.Printf("[Device.DoWorker] Sending %s\n", cmd)
 
 		// retry until ack
 		for {
@@ -191,17 +252,17 @@ func (d *Device) sendAndWaitForAck(cmd Cmd, seq uint32) bool {
 	case ViscaCommand:
 		data = append(data, 0x1, 0x0)
 		data = append(data, pLen2(cmd.ViscaCommand())...)
-		data = append(data, d.pSeq4(seq)...)
+		data = append(data, pSeq4(seq)...)
 		data = append(data, cmd.ViscaCommand()...)
 	case ViscaInquiry:
 		data = append(data, 0x1, 0x10)
 		data = append(data, pLen2(cmd.ViscaInquiry())...)
-		data = append(data, d.pSeq4(seq)...)
+		data = append(data, pSeq4(seq)...)
 		data = append(data, cmd.ViscaInquiry()...)
 	case ControlCommand:
 		data = append(data, 0x2, 0x0)
 		data = append(data, pLen2(cmd.ControlCommand())...)
-		data = append(data, d.pSeq4(seq)...)
+		data = append(data, pSeq4(seq)...)
 		data = append(data, cmd.ControlCommand()...)
 	//case ViscaReply:
 	//data = append(data, 0x1, 0x11)
@@ -225,16 +286,16 @@ func (d *Device) sendAndWaitForAck(cmd Cmd, seq uint32) bool {
 
 	// send it
 	d.write <- data
-	//if cmd, ok := cmd.(CmdWaitable); ok {
-	//	go cmd.WaitReply(d)
-	//}
 
 	// wait for ack
-	select {
-	case <-time.After(time.Millisecond * 500):
-		cmd.Finish()
+	<-cmd.Done()
+	switch cmd.Err() {
+	case context.DeadlineExceeded:
 		return false
-	case <-cmd.Done():
+	case context.Canceled:
+		return true
+	default:
+		fmt.Printf(">> unknown context finish\n")
 		return true
 	}
 }
@@ -244,7 +305,7 @@ func pLen2(payload []byte) []byte {
 	binary.BigEndian.PutUint16(length, uint16(len(payload)))
 	return length
 }
-func (d *Device) pSeq4(seqInt uint32) []byte {
+func pSeq4(seqInt uint32) []byte {
 	seq := make([]byte, 4)
 	binary.BigEndian.PutUint32(seq, seqInt)
 

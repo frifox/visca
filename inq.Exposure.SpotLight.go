@@ -4,22 +4,22 @@ import (
 	"fmt"
 )
 
-type InqExposureBackLight struct {
+type InqExposureSpotLight struct {
 	CmdContext
 	On bool
 }
 
-func (c *InqExposureBackLight) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqExposureSpotLight) String() string {
+	return fmt.Sprintf("%T{On:%t}", *c, c.On)
 }
 
-func (c *InqExposureBackLight) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x33}
+func (c *InqExposureSpotLight) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera, 0x3a}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqExposureBackLight) HandleReply(data []byte, device *Device) {
+func (c *InqExposureSpotLight) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
 	// 50 0p
@@ -28,15 +28,16 @@ func (c *InqExposureBackLight) HandleReply(data []byte, device *Device) {
 		return
 	}
 
-	val := data[1]
-	switch val {
+	p := data[1]
+
+	switch p {
 	case 0x2:
 		c.On = true
 	case 0x3:
 		c.On = false
 	default:
-		fmt.Printf(">> unknown %T value [%X]\n", *c, val)
+		fmt.Printf(">> unknown %T value [%X]\n", *c, p)
 	}
 
-	device.Inquiry.InqExposureBackLight = c
+	device.Inquiry.InqExposureSpotLight = c
 }

@@ -10,7 +10,7 @@ type InqColorWhiteBalanceMode struct {
 }
 
 func (c *InqColorWhiteBalanceMode) String() string {
-	return fmt.Sprintf("%T{}", *c)
+	return fmt.Sprintf("%T{Mode:%s}", *c, c.Mode)
 }
 
 func (c *InqColorWhiteBalanceMode) ViscaCommand() []byte {

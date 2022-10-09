@@ -10,11 +10,11 @@ type InqExposureComp struct {
 }
 
 func (c *InqExposureComp) String() string {
-	return fmt.Sprintf("%T{}", *c)
+	return fmt.Sprintf("%T{On:%t}", *c, c.On)
 }
 
 func (c *InqExposureComp) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0xe3}
+	data := []byte{CamID, doInquiry, toCamera, 0x3e}
 	data = append(data, EOL)
 	return data
 }
@@ -35,10 +35,8 @@ func (c *InqExposureComp) HandleReply(data []byte, device *Device) {
 	case 0x3:
 		c.On = false
 	default:
-		fmt.Printf(">> ")
+		fmt.Printf(">> unknown exposure comp value [%X]\n", val)
 	}
-	p := data[1:2]
-	c.On = int(sonyInt(p))
 
-	device.Inquiry.ExposureAESpeed = c
+	device.Inquiry.InqExposureComp = c
 }

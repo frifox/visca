@@ -1,7 +1,6 @@
 package visca
 
 import (
-	"context"
 	"fmt"
 	"math"
 )
@@ -16,31 +15,17 @@ const (
 )
 
 type PanTiltDrive struct {
+	CmdContext
+
 	X float64
 	Y float64
 
 	x int8
 	y int8
-
-	//ack     bool
-	//fin     bool
-	//ackChan chan bool
-	//finChan chan bool
-	//start   time.Time
-
-	context.Context
-	context.CancelFunc
 }
 
 func (c *PanTiltDrive) String() string {
-	return fmt.Sprintf("PanTiltDrive{x:%d, y:%d}", c.x, c.y)
-}
-
-func (c *PanTiltDrive) InitContext() {
-	c.Context, c.CancelFunc = context.WithCancel(context.Background())
-}
-func (c *PanTiltDrive) Finish() {
-	c.CancelFunc()
+	return fmt.Sprintf("%T{x:%d, y:%d}", *c, c.x, c.y)
 }
 
 func (c *PanTiltDrive) Apply(device *Device) (needToSend bool) {
@@ -70,16 +55,10 @@ func (c *PanTiltDrive) Apply(device *Device) (needToSend bool) {
 		return false
 	}
 
-	//fmt.Printf(">> state updated %s\n", c)
-	//device.State.PanTiltDrive = *c
 	device.State.PanTiltDrive.X = c.X
 	device.State.PanTiltDrive.Y = c.Y
 	device.State.PanTiltDrive.x = c.x
 	device.State.PanTiltDrive.y = c.y
-
-	//c.start = time.Now()
-	//c.ackChan = make(chan bool)
-	//c.finChan = make(chan bool)
 
 	return true
 }
@@ -126,44 +105,18 @@ func (c *PanTiltDrive) ViscaCommand() []byte {
 	return data
 }
 
-//func (c *PanTiltDrive) WaitReply(device *Device) {
-//	go c.WaitAck(device)
-//	go c.WaitFin(device)
-//}
-//
-//func (c *PanTiltDrive) WaitAck(device *Device) {
-//	select {
-//	case <-time.After(time.Millisecond * 100):
-//		fmt.Printf(">> PanTilt ACK timeout!\n")
-//	case <-c.ackChan:
-//		//fmt.Printf(">> PanTilt ACK %d ms\n", time.Now().Sub(c.start).Milliseconds())
-//	}
-//
-//	device.PanTiltReady.Done()
-//}
-//func (c *PanTiltDrive) WaitFin(device *Device) {
-//	select {
-//	case <-time.After(time.Millisecond * 100):
-//		fmt.Printf(">> PanTilt FIN timeout!\n")
-//	case <-c.finChan:
-//		//fmt.Printf(">> PanTilt FIN %d ms\n", time.Now().Sub(c.start).Milliseconds())
-//	}
-//
-//	device.PanTiltReady.Done()
-//}
-
 func (c *PanTiltDrive) HandleReply(data []byte, device *Device) {
-	if len(data) < 2 {
+	if len(data) != 1 {
 		fmt.Printf("[PanTiltDrive.HandleReply] BAD REPLY [% X]\n", data)
 		return
 	}
 
-	switch data[1] & 0xf0 {
+	p := data[0] & 0xf0
+
+	switch p {
 	case 0x40: // ack
 	case 0x50: // fin
-		if c.Err() == nil {
-			c.CancelFunc()
-		}
+		c.Finish()
 	default:
 		fmt.Printf("[PanTiltDrive.HandleReply] Unknown [% X]\n", data)
 	}

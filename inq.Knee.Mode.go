@@ -4,23 +4,23 @@ import (
 	"fmt"
 )
 
-type InqKneeSetting struct {
+type InqKneeMode struct {
 	CmdContext
-	On bool
+	Mode string
 }
 
-func (c *InqKneeSetting) String() string {
-	return fmt.Sprintf("%T{On:%t}", *c, c.On)
+func (c *InqKneeMode) String() string {
+	return fmt.Sprintf("%T{Mode:%s}", *c, c.Mode)
 }
 
-func (c *InqKneeSetting) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toConfig, 0x1}
-	data = append(data, 0x6d)
+func (c *InqKneeMode) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera2, 0x42}
+	data = append(data, 0x1)
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqKneeSetting) HandleReply(data []byte, device *Device) {
+func (c *InqKneeMode) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
 	// 50 0p
@@ -32,11 +32,11 @@ func (c *InqKneeSetting) HandleReply(data []byte, device *Device) {
 	p := data[1]
 
 	switch p {
-	case 0x2:
-		c.On = true
-	case 0x3:
-		c.On = false
+	case 0x0:
+		c.Mode = "Auto"
+	case 0x1:
+		c.Mode = "Manual"
 	}
 
-	device.Inquiry.InqKneeSetting = c
+	device.Inquiry.InqKneeMode = c
 }

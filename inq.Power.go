@@ -1,26 +1,16 @@
 package visca
 
 import (
-	"context"
 	"fmt"
 )
 
 type InqPower struct {
+	CmdContext
 	On bool
-
-	context.Context
-	context.CancelFunc
 }
 
 func (c *InqPower) String() string {
-	return fmt.Sprintf("InqPower{}")
-}
-
-func (c *InqPower) InitContext() {
-	c.Context, c.CancelFunc = context.WithCancel(context.Background())
-}
-func (c *InqPower) Finish() {
-	c.CancelFunc()
+	return fmt.Sprintf("%T{On:%t}", *c, c.On)
 }
 
 func (c *InqPower) ViscaCommand() []byte {
@@ -30,22 +20,26 @@ func (c *InqPower) ViscaCommand() []byte {
 }
 
 func (c *InqPower) HandleReply(data []byte, device *Device) {
-	if c.Err() == nil {
-		c.CancelFunc()
-	}
+	c.Finish()
 
-	if len(data) != 4 {
-		fmt.Printf("[InqPower.HandleReply] BAD REPLY [% X]\n", data)
+	// 50 0p
+	if len(data) != 2 {
+		fmt.Printf(">> bad reply [% X]\n", data)
 		return
 	}
 
-	// [y0 50 0p FF] p: 2=on, 3=standby
-	switch data[2] {
+	p := data[1]
+
+	switch p {
 	case 0x2:
+		c.On = true
 		device.State.Power.On = true
 	case 0x3:
+		c.On = false
 		device.State.Power.On = false
 	default:
-		fmt.Printf("[InqPower.HandleReply] Unknown [% X]\n", data)
+		fmt.Printf(">> unknown %T value [%X]\n", *c, p)
 	}
+
+	device.Inquiry.InqPower = c
 }

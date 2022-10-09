@@ -4,22 +4,23 @@ import (
 	"fmt"
 )
 
-type InqKneeSlope struct {
+type InqKneePoint struct {
 	CmdContext
-	Level int // 0 - 15
+	Level int // 0 - 12/0xc
 }
 
-func (c *InqKneeSlope) String() string {
+func (c *InqKneePoint) String() string {
 	return fmt.Sprintf("%T{Level:%d}", *c, c.Level)
 }
 
-func (c *InqKneeSlope) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x42}
+func (c *InqKneePoint) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toConfig, 0x1}
+	data = append(data, 0x6e)
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqKneeSlope) HandleReply(data []byte, device *Device) {
+func (c *InqKneePoint) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
 	// 50 00 00 0p 0p
@@ -32,5 +33,5 @@ func (c *InqKneeSlope) HandleReply(data []byte, device *Device) {
 	p := sonyInt(pp)
 	c.Level = int(p)
 
-	device.Inquiry.InqKneeSlope = c
+	device.Inquiry.InqKneePoint = c
 }

@@ -4,35 +4,32 @@ import (
 	"fmt"
 )
 
-type InqColorBlueGain struct {
+type InqColorLevel struct {
 	CmdContext
-	Gain int
+	Level int // 0 - 15
 }
 
-func (c *InqColorBlueGain) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqColorLevel) String() string {
+	return fmt.Sprintf("%T{Level:%d}", *c, c.Level)
 }
 
-func (c *InqColorBlueGain) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x44}
+func (c *InqColorLevel) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera, 0x49}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqColorBlueGain) HandleReply(data []byte, device *Device) {
+func (c *InqColorLevel) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
-	// 50 00 00 0p 0p
+	// 50 00 00 00 0p
 	if len(data) != 5 {
 		fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
-	pp := data[3:5]
-	val := int(sonyInt(pp))
+	p := data[4]
+	c.Level = int(p)
 
-	// 0x0 - 0xff; 0x80=0
-	c.Gain = val - 0x80
-
-	device.Inquiry.InqColorBlueGain = c
+	device.Inquiry.InqColorLevel = c
 }

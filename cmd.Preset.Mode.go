@@ -9,6 +9,8 @@ import "fmt"
 //	0x1 = Mode2 = Call PTZF only
 
 type PresetMode struct {
+	CmdContext
+
 	ID uint8
 	id uint8
 }
@@ -33,16 +35,5 @@ func (c *PresetMode) ViscaCommand() []byte {
 	return data
 }
 func (c *PresetMode) HandleReply(data []byte) {
-	if len(data) < 2 {
-		fmt.Printf("[PresetMode.HandleReply] BAD REPLY [% X]\n", data)
-		return
-	}
-	switch data[1] & 0xf0 {
-	case 0x40:
-		//fmt.Printf("[PresetMode.HandleReply] ACK\n")
-	case 0x50:
-		fmt.Printf("[PresetMode.HandleReply] FIN\n")
-		//default:
-		fmt.Printf("[PresetMode.HandleReply] Unknown [% X]\n", data)
-	}
+	c.Finish()
 }

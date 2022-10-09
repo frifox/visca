@@ -4,32 +4,33 @@ import (
 	"fmt"
 )
 
-type InqColorLevel struct {
+type InqDetailLevel struct {
 	CmdContext
-	Level int // 0 - 15
+	Level int // 0 - 14/0xe
 }
 
-func (c *InqColorLevel) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqDetailLevel) String() string {
+	return fmt.Sprintf("%T{Level:%d}", *c, c.Level)
 }
 
-func (c *InqColorLevel) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x49}
+func (c *InqDetailLevel) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera, 0x42}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqColorLevel) HandleReply(data []byte, device *Device) {
+func (c *InqDetailLevel) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
-	// 50 00 00 00 0p
+	// 50 00 00 0p 0p
 	if len(data) != 5 {
 		fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
-	p := data[4]
+	pp := data[3:5]
+	p := sonyInt(pp)
 	c.Level = int(p)
 
-	device.Inquiry.InqColorLevel = c
+	device.Inquiry.InqDetailLevel = c
 }

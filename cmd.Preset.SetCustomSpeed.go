@@ -1,6 +1,8 @@
 package visca
 
 type PresetSetCustomSpeed struct {
+	CmdContext
+
 	ID    uint8
 	Speed uint8
 
@@ -26,4 +28,8 @@ func (c *PresetSetCustomSpeed) ViscaCommand() []byte {
 	data = append(data, 0xb, c.id, c.speed)
 	data = append(data, EOL)
 	return data
+}
+
+func (c *PresetSetCustomSpeed) HandleReply(data []byte, device *Device) {
+	c.Finish()
 }

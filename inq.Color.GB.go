@@ -4,23 +4,23 @@ import (
 	"fmt"
 )
 
-type InqColorRG struct {
+type InqColorGB struct {
 	CmdContext
 	Shift int // -99 - 99
 }
 
-func (c *InqColorRG) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqColorGB) String() string {
+	return fmt.Sprintf("%T{Shift:%d}", *c, c.Shift)
 }
 
-func (c *InqColorRG) ViscaCommand() []byte {
+func (c *InqColorGB) ViscaCommand() []byte {
 	data := []byte{CamID, doInquiry, toConfig, 0x1}
-	data = append(data, 0x7a)
+	data = append(data, 0x7d)
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqColorRG) HandleReply(data []byte, device *Device) {
+func (c *InqColorGB) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
 	// 50 00 00 0p 0p
@@ -35,5 +35,5 @@ func (c *InqColorRG) HandleReply(data []byte, device *Device) {
 	// 0x0 - 0xC6 >> -99 - 99
 	c.Shift = int(val) - 0x63
 
-	device.Inquiry.InqColorRG = c
+	device.Inquiry.InqColorGB = c
 }

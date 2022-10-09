@@ -10,7 +10,7 @@ type InqExposureShutterMax struct {
 }
 
 func (c *InqExposureShutterMax) String() string {
-	return fmt.Sprintf("%T{}", *c)
+	return fmt.Sprintf("%T{Shutter:%d}", *c, c.Shutter)
 }
 
 func (c *InqExposureShutterMax) ViscaCommand() []byte {
@@ -33,5 +33,5 @@ func (c *InqExposureShutterMax) HandleReply(data []byte, device *Device) {
 	val := int(sonyInt(pp))
 	c.Shutter = sonyShutter(val, 59.94) // TODO framerate
 
-	device.Inquiry.ExposureShutterMax = c
+	device.Inquiry.InqExposureShutterMax = c
 }

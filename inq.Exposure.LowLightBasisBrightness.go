@@ -4,22 +4,22 @@ import (
 	"fmt"
 )
 
-type InqExposureVisibilityEnhancer struct {
+type InqExposureLowLightBasisBrightness struct {
 	CmdContext
 	On bool
 }
 
-func (c *InqExposureVisibilityEnhancer) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqExposureLowLightBasisBrightness) String() string {
+	return fmt.Sprintf("%T{On:%t}", *c, c.On)
 }
 
-func (c *InqExposureVisibilityEnhancer) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x3d}
+func (c *InqExposureLowLightBasisBrightness) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera2, 0x39}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqExposureVisibilityEnhancer) HandleReply(data []byte, device *Device) {
+func (c *InqExposureLowLightBasisBrightness) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
 	// 50 0p
@@ -31,7 +31,7 @@ func (c *InqExposureVisibilityEnhancer) HandleReply(data []byte, device *Device)
 	p := data[1]
 
 	switch p {
-	case 0x6:
+	case 0x2:
 		c.On = true
 	case 0x3:
 		c.On = false
@@ -39,5 +39,5 @@ func (c *InqExposureVisibilityEnhancer) HandleReply(data []byte, device *Device)
 		fmt.Printf(">> unknown %T value [%X]\n", *c, p)
 	}
 
-	device.Inquiry.InqExposureVisibilityEnhancer = c
+	device.Inquiry.InqExposureLowLightBasisBrightness = c
 }

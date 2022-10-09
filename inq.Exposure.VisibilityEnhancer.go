@@ -4,22 +4,22 @@ import (
 	"fmt"
 )
 
-type InqExposureBackLight struct {
+type InqExposureVisibilityEnhancer struct {
 	CmdContext
 	On bool
 }
 
-func (c *InqExposureBackLight) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqExposureVisibilityEnhancer) String() string {
+	return fmt.Sprintf("%T{On:%t}", *c, c.On)
 }
 
-func (c *InqExposureBackLight) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x33}
+func (c *InqExposureVisibilityEnhancer) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera, 0x3d}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqExposureBackLight) HandleReply(data []byte, device *Device) {
+func (c *InqExposureVisibilityEnhancer) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
 	// 50 0p
@@ -31,7 +31,7 @@ func (c *InqExposureBackLight) HandleReply(data []byte, device *Device) {
 	p := data[1]
 
 	switch p {
-	case 0x2:
+	case 0x6:
 		c.On = true
 	case 0x3:
 		c.On = false
@@ -39,5 +39,5 @@ func (c *InqExposureBackLight) HandleReply(data []byte, device *Device) {
 		fmt.Printf(">> unknown %T value [%X]\n", *c, p)
 	}
 
-	device.Inquiry.InqExposureBackLight = c
+	device.Inquiry.InqExposureVisibilityEnhancer = c
 }

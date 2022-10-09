@@ -1,27 +1,18 @@
 package visca
 
 import (
-	"context"
 	"fmt"
 )
 
 type PresetSet struct {
+	CmdContext
+
 	ID uint8
 	id uint8
-
-	context.Context
-	context.CancelFunc
 }
 
 func (c *PresetSet) String() string {
-	return fmt.Sprintf("PresetSet{ID:%X}", c.id)
-}
-
-func (c *PresetSet) InitContext() {
-	c.Context, c.CancelFunc = context.WithCancel(context.Background())
-}
-func (c *PresetSet) Finish() {
-	c.CancelFunc()
+	return fmt.Sprintf("%T{ID:%X}", *c, c.id)
 }
 
 func (c *PresetSet) Apply(d *Device) bool {
@@ -41,15 +32,16 @@ func (c *PresetSet) ViscaCommand() []byte {
 	return data
 }
 func (c *PresetSet) HandleReply(data []byte, device *Device) {
-	if c.Err() == nil {
-		c.CancelFunc()
-	}
+	c.Finish()
 
-	if len(data) < 2 {
+	if len(data) != 1 {
 		fmt.Printf("[PresetMode.HandleReply] BAD REPLY [% X]\n", data)
 		return
 	}
-	switch data[1] & 0xf0 {
+
+	p := data[0] & 0xf0
+
+	switch p {
 	case 0x40:
 		fmt.Printf("[PresetMode.HandleReply] ACK\n")
 	case 0x50:

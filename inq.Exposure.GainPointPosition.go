@@ -4,40 +4,34 @@ import (
 	"fmt"
 )
 
-type InqExposureGainPoint struct {
+type InqExposureGainPointPosition struct {
 	CmdContext
-	On bool
+	Gain int
 }
 
-func (c *InqExposureGainPoint) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqExposureGainPointPosition) String() string {
+	return fmt.Sprintf("%T{Gain:%d}", *c, c.Gain)
 }
 
-func (c *InqExposureGainPoint) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toUnknown, 0xc}
+func (c *InqExposureGainPointPosition) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera2, 0x4c}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqExposureGainPoint) HandleReply(data []byte, device *Device) {
+func (c *InqExposureGainPointPosition) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
-	// 50 0p
-	if len(data) != 2 {
+	// 50 0p 0p
+	if len(data) != 3 {
 		fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
-	p := data[1]
+	pp := data[1:3]
+	p := sonyInt(pp)
+	gain := sonyGain(int(p))
+	c.Gain = gain
 
-	switch p {
-	case 0x2:
-		c.On = true
-	case 0x3:
-		c.On = false
-	default:
-		fmt.Printf(">> unexpected gainpoint [%X]\n", p)
-	}
-
-	device.Inquiry.ExposureGainPoint = c
+	device.Inquiry.InqExposureGainPointPosition = c
 }

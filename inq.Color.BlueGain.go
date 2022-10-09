@@ -6,11 +6,11 @@ import (
 
 type InqColorBlueGain struct {
 	CmdContext
-	Gain int
+	Gain int // -128 - 128(?)
 }
 
 func (c *InqColorBlueGain) String() string {
-	return fmt.Sprintf("%T{}", *c)
+	return fmt.Sprintf("%T{Gain:%d}", *c, c.Gain)
 }
 
 func (c *InqColorBlueGain) ViscaCommand() []byte {
@@ -31,7 +31,8 @@ func (c *InqColorBlueGain) HandleReply(data []byte, device *Device) {
 	pp := data[3:5]
 	val := int(sonyInt(pp))
 
-	c.Gain = val - 0x80 // 0x0 - 0xff; 0x80=0
+	// 0x0 - 0xff; 0x80=0
+	c.Gain = val - 0x80
 
 	device.Inquiry.InqColorBlueGain = c
 }

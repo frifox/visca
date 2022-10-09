@@ -1,34 +1,19 @@
 package visca
 
 import (
-	"context"
 	"fmt"
 	"math"
 )
 
 type Zoom struct {
+	CmdContext
+
 	Z float64
 	z int8
-
-	//ack     bool
-	//fin     bool
-	//ackChan chan bool
-	//finChan chan bool
-	//start   time.Time
-
-	context.Context
-	context.CancelFunc
 }
 
 func (c *Zoom) String() string {
-	return fmt.Sprintf("Zoom{z:%d}", c.z)
-}
-
-func (c *Zoom) InitContext() {
-	c.Context, c.CancelFunc = context.WithCancel(context.Background())
-}
-func (c *Zoom) Finish() {
-	c.CancelFunc()
+	return fmt.Sprintf("%T{z:%d}", *c, c.z)
 }
 
 func (c *Zoom) Apply(device *Device) bool {
@@ -65,22 +50,6 @@ func (c *Zoom) Apply(device *Device) bool {
 	return true
 }
 
-//func (c *Zoom) Send(device *Device) bool {
-//	if device.State.ZoomLastSeq == nil {
-//		return true
-//	}
-//
-//	// send only if last cmd was Ack & Fin
-//	if cmd, ok := device.writeSeqCmd.Load(*device.State.ZoomLastSeq); ok {
-//		if cmd, ok := cmd.(*Zoom); ok {
-//			return cmd.ack && cmd.fin
-//		}
-//	}
-//
-//	// otherwise don't send. It'll get auto-sent after last Cmd is fin
-//	return false
-//}
-
 func (c *Zoom) ViscaCommand() []byte {
 	data := []byte{CamID, doCommand, toCamera, 0x7}
 
@@ -101,43 +70,18 @@ func (c *Zoom) ViscaCommand() []byte {
 	return data
 }
 
-//func (c *Zoom) WaitReply(device *Device) {
-//	go c.WaitAck(device)
-//	go c.WaitFin(device)
-//}
-//
-//func (c *Zoom) WaitAck(device *Device) {
-//	select {
-//	case <-time.After(time.Millisecond * 100):
-//		fmt.Printf(">> Zoom ACK timeout!\n")
-//	case <-c.ackChan:
-//		//fmt.Printf(">> Zoom ACK %d ms\n", time.Now().Sub(c.start).Milliseconds())
-//	}
-//
-//	device.ZoomReady.Done()
-//}
-//func (c *Zoom) WaitFin(device *Device) {
-//	select {
-//	case <-time.After(time.Millisecond * 100):
-//		fmt.Printf(">> Zoom FIN timeout!\n")
-//	case <-c.finChan:
-//		//fmt.Printf(">> Zoom FIN %d ms\n", time.Now().Sub(c.start).Milliseconds())
-//	}
-//
-//	device.ZoomReady.Done()
-//}
-
 func (c *Zoom) HandleReply(data []byte, device *Device) {
-	if len(data) < 2 {
+	if len(data) != 1 {
 		fmt.Printf("[Zoom.HandleReply] BAD REPLY [% X]\n", data)
 		return
 	}
-	switch data[1] & 0xf0 {
+
+	p := data[0] & 0xf0
+
+	switch p {
 	case 0x40: // ack
 	case 0x50: // fin
-		if c.Err() == nil {
-			c.CancelFunc()
-		}
+		c.Finish()
 	default:
 		fmt.Printf("[Zoom.HandleReply] Unknown [% X]\n", data)
 	}

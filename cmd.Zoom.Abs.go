@@ -5,12 +5,13 @@ import (
 )
 
 type ZoomAbs struct {
+	CmdContext
 	Z []byte
 	z []byte
 }
 
 func (c *ZoomAbs) String() string {
-	return fmt.Sprintf("ZoomAbs{z:%d}", c.z)
+	return fmt.Sprintf("%T{z:%d}", *c, c.z)
 }
 
 func (c *ZoomAbs) Apply(device *Device) bool {
@@ -26,6 +27,8 @@ func (c *ZoomAbs) ViscaCommand() []byte {
 }
 
 func (c *ZoomAbs) HandleReply(data []byte, device *Device) {
+	c.Finish()
+
 	if len(data) < 2 {
 		fmt.Printf("[ZoomAbs.HandleReply] BAD REPLY [% X]\n", data)
 		return

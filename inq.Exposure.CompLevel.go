@@ -4,39 +4,33 @@ import (
 	"fmt"
 )
 
-type InqExposureComp struct {
+type InqExposureCompLevel struct {
 	CmdContext
-	On bool
+	Level int //  00 - 14
 }
 
-func (c *InqExposureComp) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqExposureCompLevel) String() string {
+	return fmt.Sprintf("%T{Level:%d}", *c, c.Level)
 }
 
-func (c *InqExposureComp) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0xe3}
+func (c *InqExposureCompLevel) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera, 0x4e}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqExposureComp) HandleReply(data []byte, device *Device) {
+func (c *InqExposureCompLevel) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
-	// 50 0p
-	if len(data) != 2 {
+	// 50 00 00 0p 0p
+	if len(data) != 5 {
 		fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
-	val := data[1]
-	switch val {
-	case 0x2:
-		c.On = true
-	case 0x3:
-		c.On = false
-	default:
-		fmt.Printf(">> unknown exposure comp value [%X]\n", val)
-	}
+	pp := data[3:5]
+	p := sonyInt(pp)
+	c.Level = int(p)
 
-	device.Inquiry.InqExposureComp = c
+	device.Inquiry.InqExposureCompLevel = c
 }

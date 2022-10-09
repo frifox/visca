@@ -4,23 +4,23 @@ import (
 	"fmt"
 )
 
-type InqDetailHVBalance struct {
+type InqDetailLimit struct {
 	CmdContext
-	Level int // 5 - 9
+	Level int // 0 - 7
 }
 
-func (c *InqDetailHVBalance) String() string {
+func (c *InqDetailLimit) String() string {
 	return fmt.Sprintf("%T{Level:%d}", *c, c.Level)
 }
 
-func (c *InqDetailHVBalance) ViscaCommand() []byte {
+func (c *InqDetailLimit) ViscaCommand() []byte {
 	data := []byte{CamID, doInquiry, toCamera2, 0x42}
-	data = append(data, 0x4)
+	data = append(data, 0x6)
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqDetailHVBalance) HandleReply(data []byte, device *Device) {
+func (c *InqDetailLimit) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
 	// 50 0p
@@ -33,5 +33,5 @@ func (c *InqDetailHVBalance) HandleReply(data []byte, device *Device) {
 
 	c.Level = int(p)
 
-	device.Inquiry.InqDetailHVBalance = c
+	device.Inquiry.InqDetailLimit = c
 }

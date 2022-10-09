@@ -4,23 +4,23 @@ import (
 	"fmt"
 )
 
-type InqDetailBandwidth struct {
+type InqDetailCrispening struct {
 	CmdContext
-	Level int
+	Level int // 0 - 7
 }
 
-func (c *InqDetailBandwidth) String() string {
+func (c *InqDetailCrispening) String() string {
 	return fmt.Sprintf("%T{Level:%d}", *c, c.Level)
 }
 
-func (c *InqDetailBandwidth) ViscaCommand() []byte {
+func (c *InqDetailCrispening) ViscaCommand() []byte {
 	data := []byte{CamID, doInquiry, toCamera2, 0x42}
-	data = append(data, 0x2)
+	data = append(data, 0x3)
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqDetailBandwidth) HandleReply(data []byte, device *Device) {
+func (c *InqDetailCrispening) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
 	// 50 0p
@@ -33,5 +33,5 @@ func (c *InqDetailBandwidth) HandleReply(data []byte, device *Device) {
 
 	c.Level = int(p)
 
-	device.Inquiry.InqDetailBandwidth = c
+	device.Inquiry.InqDetailCrispening = c
 }

@@ -4,33 +4,33 @@ import (
 	"fmt"
 )
 
-type InqDetailLevel struct {
+type InqGammaPattern struct {
 	CmdContext
-	Level int // 0 - 14/0xe
+	Pattern int // 0x1 - 0x200
 }
 
-func (c *InqDetailLevel) String() string {
-	return fmt.Sprintf("%T{Level:%d}", *c, c.Level)
+func (c *InqGammaPattern) String() string {
+	return fmt.Sprintf("%T{Pattern:%d}", *c, c.Pattern)
 }
 
-func (c *InqDetailLevel) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x42}
+func (c *InqGammaPattern) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera2, 0x5b}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqDetailLevel) HandleReply(data []byte, device *Device) {
+func (c *InqGammaPattern) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
-	// 50 00 00 0p 0p
-	if len(data) != 5 {
+	// 50 0p 0p 0p
+	if len(data) != 4 {
 		fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
-	pp := data[3:5]
+	pp := data[1:4]
 	p := sonyInt(pp)
-	c.Level = int(p)
+	c.Pattern = int(p)
 
-	device.Inquiry.InqDetailLevel = c
+	device.Inquiry.InqGammaPattern = c
 }

@@ -4,22 +4,22 @@ import (
 	"fmt"
 )
 
-type InqExposureLowLightBasisBrightness struct {
+type InqExposureLowLightBasisBrightnessInfo struct {
 	CmdContext
-	On bool
+	Level int // 4 - A
 }
 
-func (c *InqExposureLowLightBasisBrightness) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqExposureLowLightBasisBrightnessInfo) String() string {
+	return fmt.Sprintf("%T{Level:%d}", *c, c.Level)
 }
 
-func (c *InqExposureLowLightBasisBrightness) ViscaCommand() []byte {
+func (c *InqExposureLowLightBasisBrightnessInfo) ViscaCommand() []byte {
 	data := []byte{CamID, doInquiry, toCamera2, 0x39}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqExposureLowLightBasisBrightness) HandleReply(data []byte, device *Device) {
+func (c *InqExposureLowLightBasisBrightnessInfo) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
 	// 50 0p
@@ -29,15 +29,7 @@ func (c *InqExposureLowLightBasisBrightness) HandleReply(data []byte, device *De
 	}
 
 	p := data[1]
+	c.Level = int(p)
 
-	switch p {
-	case 0x2:
-		c.On = true
-	case 0x3:
-		c.On = false
-	default:
-		fmt.Printf(">> unknown %T value [%X]\n", *c, p)
-	}
-
-	device.Inquiry.InqExposureLowLightBasisBrightness = c
+	device.Inquiry.InqExposureLowLightBasisBrightnessInfo = c
 }

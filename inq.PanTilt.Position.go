@@ -3,12 +3,14 @@ package visca
 import "fmt"
 
 type InqPanTiltPosition struct {
-	X []byte
-	Y []byte
+	CmdContext
+
+	X int
+	Y int
 }
 
 func (c *InqPanTiltPosition) String() string {
-	return fmt.Sprintf("InqPanTiltPosition")
+	return fmt.Sprintf("%T{X:%d,Y:%d}", *c, c.X, c.Y)
 }
 
 func (c *InqPanTiltPosition) Apply(device *Device) bool {
@@ -21,18 +23,22 @@ func (c *InqPanTiltPosition) ViscaInquiry() []byte {
 	return data
 }
 func (c *InqPanTiltPosition) HandleReply(data []byte, device *Device) {
-	if len(data) != 11 {
-		fmt.Printf("[InqPanTiltPosition.HandleReply] len() != (11 [% X]\n", data)
+	c.Finish()
+
+	// 50 0p 0p 0p 0p 0p 0t 0t 0t 0t
+	if len(data) != 10 {
+		fmt.Printf(">> bad reply [% X]\n", data)
 		return
 	}
 
-	//fmt.Printf("[InqPanTiltPosition.HandleReply] Handling [% X]\n", data)
+	pppp := data[1:6]
+	tttt := data[6:10]
 
-	xy := data[2 : len(data)-1]
-	//fmt.Printf("[InqPanTiltPosition.HandleReply] Handling [% X]\n", xy)
+	p := sonyInt(pppp)
+	t := sonyInt(tttt)
 
-	c.X = xy[:4]
-	c.Y = xy[4:]
+	c.X = int(p)
+	c.Y = int(t)
 
-	//fmt.Printf("[InqPanTiltPosition.HandleReply] X = [% X] y = [% X]\n", c.X, c.Y)
+	device.Inquiry.InqPanTiltPosition = c
 }

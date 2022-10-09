@@ -4,41 +4,33 @@ import (
 	"fmt"
 )
 
-type InqExposureMode struct {
+type InqExposureIris struct {
 	CmdContext
-	Mode string
+	F float64
 }
 
-func (c *InqExposureMode) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqExposureIris) String() string {
+	return fmt.Sprintf("%T{F:%f}", *c, c.F)
 }
 
-func (c *InqExposureMode) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x39}
+func (c *InqExposureIris) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera, 0x4b}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqExposureMode) HandleReply(data []byte, device *Device) {
+func (c *InqExposureIris) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
-	if len(data) < 4 {
+	// 50 00 00 0p 0p
+	if len(data) != 5 {
 		fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
-	cmd := data[1:len(data)-1]
+	pp := data[3:5]
+	p := sonyInt(pp)
+	c.F = sonyIris(int(p))
 
-	switch cmd[1] {
-	case 0x0:
-		c.Mode = "Auto"
-	case 0x3:
-		c.Mode = "Manual"
-	case 0xa:
-		c.Mode = "Shutter Priority"
-	case 0xb:
-		c.Mode = "Iris Priority"
-	case 0xe:
-		c.Mode = "Gain Priority"
-	}
+	device.Inquiry.InqExposureIris = c
 }

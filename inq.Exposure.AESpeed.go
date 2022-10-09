@@ -4,34 +4,32 @@ import (
 	"fmt"
 )
 
-type InqExposureShutterMax struct {
+type InqExposureAESpeed struct {
 	CmdContext
-	Shutter int
+	Speed int
 }
 
-func (c *InqExposureShutterMax) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqExposureAESpeed) String() string {
+	return fmt.Sprintf("%T{Speed:%d}", *c, c.Speed)
 }
 
-func (c *InqExposureShutterMax) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera2, 0x2a}
-	data = append(data, 0x0)
+func (c *InqExposureAESpeed) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera, 0x5d}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqExposureShutterMax) HandleReply(data []byte, device *Device) {
+func (c *InqExposureAESpeed) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
-	// 50 0p 0p
-	if len(data) != 3 {
+	// 50 0p
+	if len(data) != 2 {
 		fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
-	pp := data[1:3]
-	val := int(sonyInt(pp))
-	c.Shutter = sonyShutter(val, 59.94) // TODO framerate
+	p := data[1]
+	c.Speed = int(p)
 
-	device.Inquiry.ExposureShutterMax = c
+	device.Inquiry.InqExposureAESpeed = c
 }

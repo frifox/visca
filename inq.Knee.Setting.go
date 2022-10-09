@@ -4,23 +4,23 @@ import (
 	"fmt"
 )
 
-type InqDetailHVBalance struct {
+type InqKneeSetting struct {
 	CmdContext
-	Level int // 5 - 9
+	On bool
 }
 
-func (c *InqDetailHVBalance) String() string {
-	return fmt.Sprintf("%T{Level:%d}", *c, c.Level)
+func (c *InqKneeSetting) String() string {
+	return fmt.Sprintf("%T{On:%t}", *c, c.On)
 }
 
-func (c *InqDetailHVBalance) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera2, 0x42}
-	data = append(data, 0x4)
+func (c *InqKneeSetting) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toConfig, 0x1}
+	data = append(data, 0x6d)
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqDetailHVBalance) HandleReply(data []byte, device *Device) {
+func (c *InqKneeSetting) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
 	// 50 0p
@@ -31,7 +31,12 @@ func (c *InqDetailHVBalance) HandleReply(data []byte, device *Device) {
 
 	p := data[1]
 
-	c.Level = int(p)
+	switch p {
+	case 0x2:
+		c.On = true
+	case 0x3:
+		c.On = false
+	}
 
-	device.Inquiry.InqDetailHVBalance = c
+	device.Inquiry.InqKneeSetting = c
 }

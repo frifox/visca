@@ -4,22 +4,22 @@ import (
 	"fmt"
 )
 
-type InqExposureIris struct {
+type InqExposureShutter struct {
 	CmdContext
-	F float64
+	Shutter int
 }
 
-func (c *InqExposureIris) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqExposureShutter) String() string {
+	return fmt.Sprintf("%T{Shutter:%d}", *c, c.Shutter)
 }
 
-func (c *InqExposureIris) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x4b}
+func (c *InqExposureShutter) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera, 0x4a}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqExposureIris) HandleReply(data []byte, device *Device) {
+func (c *InqExposureShutter) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
 	// 50 00 00 0p 0p
@@ -30,8 +30,7 @@ func (c *InqExposureIris) HandleReply(data []byte, device *Device) {
 
 	pp := data[3:5]
 	val := int(sonyInt(pp))
+	c.Shutter = sonyShutter(val, 59.94) // TODO framerate
 
-	c.F = sonyIris(val)
-
-	device.Inquiry.ExposureIris = c
+	device.Inquiry.InqExposureShutter = c
 }

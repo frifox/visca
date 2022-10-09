@@ -4,35 +4,35 @@ import (
 	"fmt"
 )
 
-type InqColorBlueGain struct {
+type InqColorOffset struct {
 	CmdContext
-	Gain int
+	Offset int // -7 to +7;
 }
 
-func (c *InqColorBlueGain) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqColorOffset) String() string {
+	return fmt.Sprintf("%T{Offset:%d}", *c, c.Offset)
 }
 
-func (c *InqColorBlueGain) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x44}
+func (c *InqColorOffset) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toConfig, 0x1}
+	data = append(data, 0x2e)
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqColorBlueGain) HandleReply(data []byte, device *Device) {
+func (c *InqColorOffset) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
-	// 50 00 00 0p 0p
+	// 50 00 00 00 0p
 	if len(data) != 5 {
 		fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
-	pp := data[3:5]
-	val := int(sonyInt(pp))
+	p := data[4]
 
-	// 0x0 - 0xff; 0x80=0
-	c.Gain = val - 0x80
+	// 0x0 - 0xE; 0x7=0
+	c.Offset = int(p) - 0x7
 
-	device.Inquiry.InqColorBlueGain = c
+	device.Inquiry.InqColorOffset = c
 }

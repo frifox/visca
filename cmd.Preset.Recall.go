@@ -1,27 +1,18 @@
 package visca
 
 import (
-	"context"
 	"fmt"
 )
 
 type PresetRecall struct {
+	CmdContext
+
 	ID uint8
 	id uint8
-
-	context.Context
-	context.CancelFunc
 }
 
 func (c *PresetRecall) String() string {
-	return fmt.Sprintf("PresetRecall{id:%d}", c.id)
-}
-
-func (c *PresetRecall) InitContext() {
-	c.Context, c.CancelFunc = context.WithCancel(context.Background())
-}
-func (c *PresetRecall) Finish() {
-	c.CancelFunc()
+	return fmt.Sprintf("%T{id:%d}", *c, c.id)
 }
 
 func (c *PresetRecall) Apply(d *Device) bool {
@@ -42,18 +33,19 @@ func (c *PresetRecall) ViscaCommand() []byte {
 }
 
 func (c *PresetRecall) HandleReply(data []byte, device *Device) {
-	if c.Err() == nil {
-		c.CancelFunc()
-	}
+	c.Finish()
 
-	if len(data) < 2 {
+	if len(data) != 1 {
 		fmt.Printf("[PresetRecall.HandleReply] BAD REPLY [% X]\n", data)
 		return
 	}
-	switch data[1] {
-	case 0x41:
+
+	p := data[0] & 0xf0
+
+	switch p {
+	case 0x40:
 		fmt.Printf("[PresetRecall.HandleReply] ACK\n")
-	case 0x51:
+	case 0x50:
 		fmt.Printf("[PresetRecall.HandleReply] FIN\n")
 	default:
 		fmt.Printf("[PresetRecall.HandleReply] Unknown [% X]\n", data)

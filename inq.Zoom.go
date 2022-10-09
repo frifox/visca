@@ -5,15 +5,12 @@ import (
 )
 
 type InqZoom struct {
-	Z []byte
+	CmdContext
+	Z int
 }
 
 func (c *InqZoom) String() string {
-	return fmt.Sprintf("InqZoom{}")
-}
-
-func (c *InqZoom) Apply(device *Device) bool {
-	return true
+	return fmt.Sprintf("%T{Z:%d}", *c, c.Z)
 }
 
 func (c *InqZoom) ViscaCommand() []byte {
@@ -23,15 +20,34 @@ func (c *InqZoom) ViscaCommand() []byte {
 }
 
 func (c *InqZoom) HandleReply(data []byte, device *Device) {
-	if len(data) < 2 {
-		fmt.Printf("[InqZoom.HandleReply] BAD REPLY [% X]\n", data)
+	c.Finish()
+
+	// 50 0z 0z 0z 0z
+	if len(data) != 5 {
+		fmt.Printf(">> bad reply [% X]\n", data)
 		return
 	}
-	switch data[1] {
-	case 0x50:
-		c.Z = data[2 : len(data)-1]
-		fmt.Printf("[InqZoom.HandleReply] Zoom [%X]\n", c.Z)
-	default:
-		fmt.Printf("[InqZoom.HandleReply] Unknown [% X]\n", data)
-	}
+
+	zzzz := data[1:5]
+	z := sonyInt(zzzz)
+	c.Z = int(z)
+
+	/* TODO
+	0000 ×1
+	1800 ×2
+	2340 ×3
+	2A40 ×4
+	2F00 ×5
+	3300 ×6
+	3600 ×7
+	3880 ×8
+	3AC0 ×9
+	3CC0 ×10
+	3E80 ×11
+	4000 ×12
+	5580 ×18 (While using Clear Image Zoom)
+	6000 ×24 (While using Clear Image Zoom)*1
+	*/
+
+	device.Inquiry.InqZoom = c
 }

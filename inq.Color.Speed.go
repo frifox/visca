@@ -4,34 +4,32 @@ import (
 	"fmt"
 )
 
-type InqColorBlueGain struct {
+type InqColorSpeed struct {
 	CmdContext
-	Gain int
+	Speed int // 1=slow - 5=fast
 }
 
-func (c *InqColorBlueGain) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqColorSpeed) String() string {
+	return fmt.Sprintf("%T{Speed:%d}", *c, c.Speed)
 }
 
-func (c *InqColorBlueGain) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x44}
+func (c *InqColorSpeed) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera, 0x56}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqColorBlueGain) HandleReply(data []byte, device *Device) {
+func (c *InqColorSpeed) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
-	// 50 00 00 0p 0p
-	if len(data) != 5 {
+	// 50 0p
+	if len(data) != 2 {
 		fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
-	pp := data[3:5]
-	val := int(sonyInt(pp))
+	p := data[1]
+	c.Speed = int(p)
 
-	c.Gain = val - 0x80 // 0x0 - 0xff; 0x80=0
-
-	device.Inquiry.InqColorBlueGain = c
+	device.Inquiry.InqColorSpeed = c
 }

@@ -2,7 +2,7 @@ package visca
 
 import (
 	"context"
-	"fmt"
+	"time"
 )
 
 // first/last bytes
@@ -21,6 +21,7 @@ const (
 const (
 	toInterface = 0x0
 	toCamera    = 0x4
+	toCamera2   = 0x5
 	toMotors    = 0x6
 	toConfig    = 0x7e
 )
@@ -29,17 +30,13 @@ type Cmd interface {
 	String() string
 	HandleReply([]byte, *Device)
 
-	InitContext()
 	context.Context
+	InitContext()
 	Finish()
 }
 type CmdAppliable interface {
 	Apply(*Device) bool
 }
-
-//type CmdWaitable interface {
-//	WaitReply(*Device)
-//}
 
 type ViscaCommand interface {
 	ViscaCommand() []byte
@@ -66,19 +63,16 @@ type ControlCommandReply interface {
 //type ControlCommand CmdType
 //type ControlCommandReply CmdType
 
-type Raw struct {
-	Cmd []byte
+type CmdContext struct {
+	context.Context
+	context.CancelFunc
 }
 
-func (c *Raw) String() string {
-	return fmt.Sprintf("Raw{% X}", c.Cmd)
+func (c *CmdContext) InitContext() {
+	c.Context, c.CancelFunc = context.WithTimeout(context.Background(), time.Millisecond*100)
 }
-func (c *Raw) ViscaCommand() []byte {
-	data := []byte{CamID}
-	data = append(data, c.Cmd...)
-	data = append(data, EOL)
-	return data
-}
-func (c *Raw) HandleReply(data []byte, device *Device) {
-	fmt.Printf(">> Raw Reply: [% X]\n", data)
+func (c *CmdContext) Finish() {
+	if c.Err() == nil {
+		c.CancelFunc()
+	}
 }

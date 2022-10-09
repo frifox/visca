@@ -4,23 +4,23 @@ import (
 	"fmt"
 )
 
-type InqExposureAESpeed struct {
+type InqExposureNDFilter struct {
 	CmdContext
-	Speed int
+	Level int // 0=off, 1=1/4, 2=1/16, 3=1/64
 }
 
-func (c *InqExposureAESpeed) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqExposureNDFilter) String() string {
+	return fmt.Sprintf("%T{Level:%d}", *c, c.Level)
 }
 
-func (c *InqExposureAESpeed) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x5d}
-	data = append(data, 0x0)
+func (c *InqExposureNDFilter) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toConfig, 0x1}
+	data = append(data, 0x53)
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqExposureAESpeed) HandleReply(data []byte, device *Device) {
+func (c *InqExposureNDFilter) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
 	// 50 0p
@@ -29,8 +29,8 @@ func (c *InqExposureAESpeed) HandleReply(data []byte, device *Device) {
 		return
 	}
 
-	p := data[1:2]
-	c.Speed = int(sonyInt(p))
+	p := data[1]
+	c.Level = int(p)
 
-	device.Inquiry.InqExposureAESpeed = c
+	device.Inquiry.InqExposureNDFilter = c
 }

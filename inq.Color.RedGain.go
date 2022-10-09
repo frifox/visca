@@ -4,46 +4,34 @@ import (
 	"fmt"
 )
 
-type InqColorWhiteBalanceMode struct {
+type InqColorRedGain struct {
 	CmdContext
-	Mode string
+	Gain int
 }
 
-func (c *InqColorWhiteBalanceMode) String() string {
-	return fmt.Sprintf("%T{}", *c)
+func (c *InqColorRedGain) String() string {
+	return fmt.Sprintf("%T{Gain:%d}", *c, c.Gain)
 }
 
-func (c *InqColorWhiteBalanceMode) ViscaCommand() []byte {
-	data := []byte{CamID, doInquiry, toCamera, 0x35}
+func (c *InqColorRedGain) ViscaCommand() []byte {
+	data := []byte{CamID, doInquiry, toCamera, 0x43}
 	data = append(data, EOL)
 	return data
 }
 
-func (c *InqColorWhiteBalanceMode) HandleReply(data []byte, device *Device) {
+func (c *InqColorRedGain) HandleReply(data []byte, device *Device) {
 	c.Finish()
 
-	// 50 0p
-	if len(data) != 2 {
+	// 50 00 00 0p 0p
+	if len(data) != 5 {
 		fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
-	p := data[1]
+	pp := data[3:5]
+	val := int(sonyInt(pp))
 
-	switch p {
-	case 0x0:
-		c.Mode = "Auto1"
-	case 0x1:
-		c.Mode = "Indoor"
-	case 0x2:
-		c.Mode = "Outdoor"
-	case 0x3:
-		c.Mode = "OnePush WB"
-	case 0x4:
-		c.Mode = "Auto2"
-	case 0x5:
-		c.Mode = "Manual"
-	}
+	c.Gain = val - 0x80 // 0x0 - 0xff; 0x80=0
 
-	device.Inquiry.InqColorWhiteBalanceMode = c
+	device.Inquiry.InqColorRedGain = c
 }
