@@ -16,7 +16,7 @@ type PresetMode struct {
 }
 
 func (c *PresetMode) String() string {
-	return fmt.Sprintf("PresetMode{%X}", c.id)
+	return fmt.Sprintf("%T{ID:%X}", *c, c.id)
 }
 
 func (c *PresetMode) Apply(d *Device) bool {
@@ -34,6 +34,7 @@ func (c *PresetMode) ViscaCommand() []byte {
 	data = append(data, EOL)
 	return data
 }
-func (c *PresetMode) HandleReply(data []byte) {
+
+func (c *PresetMode) HandleReply(data []byte, device *Device) {
 	c.Finish()
 }
