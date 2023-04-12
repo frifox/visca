@@ -39,6 +39,12 @@ func (c *PanTiltDrive) Apply(device *Device) (needToSend bool) {
 		ySteps = ySteps * device.Config.YMaxSpeed
 	}
 
+	// slow mode hard limit
+	if device.Config.SlowMode {
+		xSteps = 2
+		ySteps = 2
+	}
+
 	c.x = int8(math.Ceil(xSteps * math.Abs(c.X)))
 	c.y = int8(math.Ceil(ySteps * math.Abs(c.Y)))
 

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-//SonySRGX400 = "Sony SRG-X400"
+// SonySRGX400 = "Sony SRG-X400"
 )
 
 type Device struct {
@@ -46,6 +46,7 @@ type Config struct {
 	XMaxSpeed float64
 	YMaxSpeed float64
 	ZMaxSpeed float64
+	SlowMode  bool
 
 	LocalUDP string
 }
