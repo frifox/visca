@@ -24,7 +24,7 @@ func (c *InqExposureGainPoint) HandleReply(data []byte, device *Device) {
 
 	// 50 0p
 	if len(data) != 2 {
-		fmt.Printf(">> BAD REPLY\n")
+		//fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
@@ -36,7 +36,7 @@ func (c *InqExposureGainPoint) HandleReply(data []byte, device *Device) {
 	case 0x3:
 		c.On = false
 	default:
-		fmt.Printf(">> unknown %T value [%X]\n", *c, p)
+		//fmt.Printf(">> unknown %T value [%X]\n", *c, p)
 	}
 
 	device.Inquiry.InqExposureGainPoint = c

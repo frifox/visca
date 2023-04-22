@@ -25,7 +25,7 @@ func (c *InqDetailCrispening) HandleReply(data []byte, device *Device) {
 
 	// 50 0p
 	if len(data) != 2 {
-		fmt.Printf(">> bad reply [%X]\n", data)
+		//fmt.Printf(">> bad reply [%X]\n", data)
 		return
 	}
 

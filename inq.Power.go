@@ -24,7 +24,7 @@ func (c *InqPower) HandleReply(data []byte, device *Device) {
 
 	// 50 0p
 	if len(data) != 2 {
-		fmt.Printf(">> bad reply [% X]\n", data)
+		//fmt.Printf(">> bad reply [% X]\n", data)
 		return
 	}
 
@@ -38,7 +38,7 @@ func (c *InqPower) HandleReply(data []byte, device *Device) {
 		c.On = false
 		device.State.Power.On = false
 	default:
-		fmt.Printf(">> unknown %T value [%X]\n", *c, p)
+		//fmt.Printf(">> unknown %T value [%X]\n", *c, p)
 	}
 
 	device.Inquiry.InqPower = c

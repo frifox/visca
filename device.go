@@ -147,14 +147,14 @@ func (d *Device) Find() (err error) {
 	if strings.HasPrefix(d.Path, "udp://") {
 		d.remoteAddr, err = net.ResolveUDPAddr("udp4", strings.TrimPrefix(d.Path, "udp://"))
 		if err != nil {
-			fmt.Printf(">> net.ResolveUDPAddr ERROR %v\n", err)
+			//fmt.Printf(">> net.ResolveUDPAddr ERROR %v\n", err)
 			return
 		}
 
 		ip, _ := net.ResolveUDPAddr("udp", d.Config.LocalUDP)
 		d.conn, err = net.ListenUDP("udp4", ip)
 		if err != nil {
-			fmt.Printf(">> net.ListenUDP ERROR %v\n", err)
+			//fmt.Printf(">> net.ListenUDP ERROR %v\n", err)
 			return
 		}
 
@@ -239,7 +239,7 @@ func (d *Device) DoWorker() {
 				break
 			}
 
-			fmt.Printf(">> retrying %s\n", cmd)
+			//fmt.Printf(">> retrying %s\n", cmd)
 		}
 	}
 }
@@ -296,7 +296,7 @@ func (d *Device) sendAndWaitForAck(cmd Cmd, seq uint32) bool {
 	case context.Canceled:
 		return true
 	default:
-		fmt.Printf(">> unknown context finish\n")
+		//fmt.Printf(">> unknown context finish\n")
 		return true
 	}
 }

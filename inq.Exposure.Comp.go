@@ -24,7 +24,7 @@ func (c *InqExposureComp) HandleReply(data []byte, device *Device) {
 
 	// 50 0p
 	if len(data) != 2 {
-		fmt.Printf(">> BAD REPLY\n")
+		//fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
@@ -35,7 +35,7 @@ func (c *InqExposureComp) HandleReply(data []byte, device *Device) {
 	case 0x3:
 		c.On = false
 	default:
-		fmt.Printf(">> unknown exposure comp value [%X]\n", val)
+		//fmt.Printf(">> unknown exposure comp value [%X]\n", val)
 	}
 
 	device.Inquiry.InqExposureComp = c

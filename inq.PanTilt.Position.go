@@ -27,7 +27,7 @@ func (c *InqPanTiltPosition) HandleReply(data []byte, device *Device) {
 
 	// 50 0p 0p 0p 0p 0p 0t 0t 0t 0t
 	if len(data) != 10 {
-		fmt.Printf(">> bad reply [% X]\n", data)
+		//fmt.Printf(">> bad reply [% X]\n", data)
 		return
 	}
 

@@ -18,5 +18,5 @@ func (c *Raw) ViscaCommand() []byte {
 }
 func (c *Raw) HandleReply(data []byte, device *Device) {
 	c.Finish()
-	fmt.Printf(">> Raw Reply: [% X]\n", data)
+	//fmt.Printf(">> Raw Reply: [% X]\n", data)
 }

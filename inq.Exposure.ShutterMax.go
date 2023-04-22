@@ -25,7 +25,7 @@ func (c *InqExposureShutterMax) HandleReply(data []byte, device *Device) {
 
 	// 50 0p 0p
 	if len(data) != 3 {
-		fmt.Printf(">> BAD REPLY\n")
+		//fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 

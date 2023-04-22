@@ -24,7 +24,7 @@ func (c *InqColorChromaSuppress) HandleReply(data []byte, device *Device) {
 
 	// 50 0p
 	if len(data) != 2 {
-		fmt.Printf(">> BAD REPLY\n")
+		//fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 

@@ -68,28 +68,28 @@ func (d *Device) readHandler() {
 
 				switch {
 				case bytes.Equal(payload, []byte{0x1}):
-					fmt.Printf(">> Ok SeqReset\n")
+					//fmt.Printf(">> Ok SeqReset\n")
 				case bytes.Equal(payload, []byte{0xf, 0x1}):
-					fmt.Printf(">> abnormal seq number\n")
+					//fmt.Printf(">> abnormal seq number\n")
 				case bytes.Equal(payload, []byte{0xf, 0x2}):
-					fmt.Printf(">> abnormal message type\n")
+					//fmt.Printf(">> abnormal message type\n")
 
 				case bytes.Equal(cmdBytes, []byte{0x40}) || bytes.Equal(cmdBytes, []byte{0x41}):
-					fmt.Printf(">> Ack (Socket#%d)\n", cmdBytes[0]&0xf)
+					//fmt.Printf(">> Ack (Socket#%d)\n", cmdBytes[0]&0xf)
 				case bytes.Equal(cmdBytes, []byte{0x50}) || bytes.Equal(cmdBytes, []byte{0x51}):
-					fmt.Printf(">> Fin (Socket#%d)\n", cmdBytes[0]&0xf)
+					//fmt.Printf(">> Fin (Socket#%d)\n", cmdBytes[0]&0xf)
 				case bytes.Equal(cmdBytes, []byte{0x60, 0x2}):
-					fmt.Printf(">> Syntax Error\n")
+					//fmt.Printf(">> Syntax Error\n")
 					autoFin = true
 				case bytes.Equal(cmdBytes, []byte{0x60, 0x3}):
-					fmt.Printf(">> Command Buffer Full\n")
+					//fmt.Printf(">> Command Buffer Full\n")
 				case bytes.Equal(cmdBytes, []byte{0x60, 0x4}) || bytes.Equal(cmdBytes, []byte{0x61, 0x4}):
-					fmt.Printf(">> Command Canceled (Socket#%d)\n", cmdBytes[0]&0xf)
+					//fmt.Printf(">> Command Canceled (Socket#%d)\n", cmdBytes[0]&0xf)
 				case bytes.Equal(cmdBytes, []byte{0x60, 0x5}) || bytes.Equal(cmdBytes, []byte{0x61, 0x5}):
-					fmt.Printf(">> No socket (Socket#%d)\n", cmdBytes[0]&0xf)
+					//fmt.Printf(">> No socket (Socket#%d)\n", cmdBytes[0]&0xf)
 					autoFin = true
 				case bytes.Equal(cmdBytes, []byte{0x60, 0x41}) || bytes.Equal(cmdBytes, []byte{0x61, 0x41}):
-					fmt.Printf(">> Command not executable (Socket#%d)\n", cmdBytes[0]&0xf)
+					//fmt.Printf(">> Command not executable (Socket#%d)\n", cmdBytes[0]&0xf)
 					autoFin = true
 				}
 
@@ -97,20 +97,20 @@ func (d *Device) readHandler() {
 				seqUint32 := binary.BigEndian.Uint32(sequence)
 				if cmd, ok := d.writeSeqCmd.Load(seqUint32); ok {
 					if cmd, yes := cmd.(Cmd); yes {
-						fmt.Printf(">> % X\n", cmdBytes)
+						//fmt.Printf(">> % X\n", cmdBytes)
 						if autoFin {
 							cmd.Finish()
 						} else {
 							cmd.HandleReply(cmdBytes, d)
 						}
 					} else {
-						fmt.Printf(">> Found seq is not Cmd\n")
+						//fmt.Printf(">> Found seq is not Cmd\n")
 					}
 				} else {
-					fmt.Printf(">> Sequence # not found: [%X] {%d}\n", sequence, seqUint32)
+					//fmt.Printf(">> Sequence # not found: [%X] {%d}\n", sequence, seqUint32)
 				}
 			default:
-				fmt.Printf(">> Not UDP conn\n")
+				//fmt.Printf(">> Not UDP conn\n")
 			}
 
 		case <-d.Done():

@@ -24,7 +24,7 @@ func (c *InqZoom) HandleReply(data []byte, device *Device) {
 
 	// 50 0z 0z 0z 0z
 	if len(data) != 5 {
-		fmt.Printf(">> bad reply [% X]\n", data)
+		//fmt.Printf(">> bad reply [% X]\n", data)
 		return
 	}
 

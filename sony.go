@@ -1,7 +1,5 @@
 package visca
 
-import "fmt"
-
 func sonyInt(in []byte) (out int64) {
 	// int64 = values up to 8 sony bytes
 
@@ -44,7 +42,7 @@ func sonyGain(val int) (gain int) {
 	case 0x00:
 		return -3
 	default:
-		fmt.Printf(">> unknown gain value [%X]\n", val)
+		//fmt.Printf(">> unknown gain value [%X]\n", val)
 	}
 
 	return 0
@@ -87,7 +85,7 @@ func sonyIris(val int) (f float64) {
 	case 0x05:
 		return 11.0
 	default:
-		fmt.Printf(">> unknown iris value [%X]\n", val)
+		//fmt.Printf(">> unknown iris value [%X]\n", val)
 	}
 
 	return 0
@@ -138,10 +136,10 @@ func sonyShutter(val int, framerate float64) (oneOverX int) {
 		case 0x2:
 			return 8
 		default:
-			fmt.Printf(">> unhandled shutter val [%X]\n", val)
+			//fmt.Printf(">> unhandled shutter val [%X]\n", val)
 		}
 	default:
-		fmt.Printf(">> unhandled framerate %f\n", framerate)
+		//fmt.Printf(">> unhandled framerate %f\n", framerate)
 	}
 
 	return 0

@@ -25,7 +25,7 @@ func (c *InqColorGR) HandleReply(data []byte, device *Device) {
 
 	// 50 00 00 0p 0p
 	if len(data) != 5 {
-		fmt.Printf(">> BAD REPLY\n")
+		//fmt.Printf(">> BAD REPLY\n")
 		return
 	}
 
